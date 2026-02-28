@@ -187,6 +187,7 @@ function AuthProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setLoading(true);
       setSession(data.session);
       if (data.session) loadData(data.session.user);
       else setLoading(false);
@@ -444,7 +445,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed }) {
       <nav className="flex-1 overflow-y-auto py-2 px-2">
         {nav.map((item, i) => {
           if (!item) return <div key={i} className="my-1 border-t" style={{borderColor:'rgba(255,255,255,0.1)'}}/>;
-          if (role !== 'owner' && !agentPages.has(item.id)) return null;
+          if (role !== 'owner' && role !== 'superadmin' && !agentPages.has(item.id)) return null;
           const active = page === item.id;
           return (
             <button key={item.id} onClick={()=>setPage(item.id)}
@@ -1164,7 +1165,7 @@ function UsersPage() {
     await supabase.from('profiles').update({ company_id: null }).eq('id', uid);
     toast('User removed'); load();
   }
-  const roleColor = { owner:'badge-navy', agent:'badge-blue' };
+  const roleColor = { owner:'badge-navy', agent:'badge-blue', superadmin:'badge-gold' };
   return (
     <div>
       <PageHeader title="Users" subtitle={seatLimit ? `${users.length}/${seatLimit} seats` : `${users.length} users`}
