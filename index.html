@@ -173,6 +173,7 @@ function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   async function loadData(user) {
+    setLoading(true);
     try {
       const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (p) {
@@ -295,9 +296,25 @@ function AuthScreen() {
 
   async function handleLogin(e) {
     e.preventDefault(); setError(''); setLoading(true);
-    const { error } = await signIn(email, password);
-    if (error) setError(error.message);
-    setLoading(false);
+    const { data, error } = await signIn(email, password);
+    if (error) { setError(error.message); setLoading(false); return; }
+    // If signIn succeeded, onAuthStateChange will fire and loadData will run.
+    // Give it 3 seconds; if company still null, the profile/company setup must have
+    // failed during registration — attempt auto-repair.
+    setTimeout(async () => {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (!s) { setLoading(false); return; }
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', s.user.id).single();
+      if (!p) {
+        // Profile missing — re-run setup RPC
+        const { error: re } = await supabase.rpc('create_company_and_profile', {
+          user_id: s.user.id, company_name: company || email.split('@')[0], owner_name: name || email.split('@')[0]
+        });
+        if (re) { setError('Setup incomplete: ' + re.message); setLoading(false); return; }
+        reload();
+      }
+      setLoading(false);
+    }, 3000);
   }
 
   async function handleRegister(e) {
