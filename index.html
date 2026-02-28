@@ -76,7 +76,7 @@ const TIERS = {
 };
 
 const TIER_LIMITS = {
-  free:     { bookings: 20, vehicles: 1, guides: 1, drivers: 1, shuttles: 1, safaris: 1, tours: 1, charters: 1, trails: 0, schedules: 1, seats: 1 },
+  free:     { bookings: 20, vehicles: 1, guides: 1, drivers: 1, shuttles: 1, safaris: 1, tours: 1, charters: 1, trails: 1, schedules: 1, seats: 1 },
   basic:    { bookings: null, vehicles: 5, guides: 5, drivers: 3, shuttles: 5, safaris: 3, tours: 3, charters: 3, trails: 1, schedules: 3, seats: 2 },
   standard: { bookings: null, vehicles: 10, guides: 10, drivers: 5, shuttles: 10, safaris: 5, tours: 5, charters: 5, trails: 3, schedules: null, seats: 5 },
   premium:  { bookings: null, vehicles: null, guides: null, drivers: null, shuttles: null, safaris: null, tours: null, charters: null, trails: null, schedules: null, seats: null }
@@ -501,25 +501,61 @@ function StatCard({ label, value, icon, color='navy', sub }) {
 
 // ─── DASHBOARD ───────────────────────────
 function DashboardPage() {
-  const { company, tier, limits } = useAuth();
-  const [stats, setStats] = useState({ bookings:0, guests:0, revenue:0, upcoming:0 });
-  const [recent, setRecent] = useState([]);
+  const { company, tier, limits, features } = useAuth();
+  const [stats,   setStats]   = useState({ bookings:0, guests:0, revenue:0, upcoming:0, confirmed:0, pending:0, cancelled:0, vehicles:0, guides:0, drivers:0 });
+  const [recent,  setRecent]  = useState([]);
+  const [monthly, setMonthly] = useState([]);
+  const [topAct,  setTopAct]  = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!company) return;
     async function load() {
-      const now = new Date().toISOString();
-      const [b, g, u] = await Promise.all([
-        supabase.from('bookings').select('id,total_amount,status', {count:'exact'}).eq('company_id', company.id),
+      const now  = new Date().toISOString();
+      const mon1 = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const [b, g, u, v, gd, dr] = await Promise.all([
+        supabase.from('bookings').select('id,total_amount,status,activity_type,start_date,created_at').eq('company_id', company.id),
         supabase.from('guests').select('id', {count:'exact'}).eq('company_id', company.id),
         supabase.from('bookings').select('id', {count:'exact'}).eq('company_id', company.id).gte('start_date', now),
+        supabase.from('vehicles').select('id,status').eq('company_id', company.id),
+        supabase.from('guides').select('id,status').eq('company_id', company.id),
+        supabase.from('drivers').select('id,status').eq('company_id', company.id),
       ]);
-      const revenue = (b.data||[]).filter(x=>x.status==='confirmed').reduce((s,x)=>s+(x.total_amount||0), 0);
-      setStats({ bookings:b.count||0, guests:g.count||0, revenue, upcoming:u.count||0 });
+      const bData = b.data||[];
+      const revenue   = bData.filter(x=>x.status==='confirmed'||x.status==='completed').reduce((s,x)=>s+(x.total_amount||0), 0);
+      const monthRev  = bData.filter(x=>(x.status==='confirmed'||x.status==='completed') && x.created_at >= mon1).reduce((s,x)=>s+(x.total_amount||0), 0);
+      const confirmed = bData.filter(x=>x.status==='confirmed').length;
+      const pending   = bData.filter(x=>x.status==='pending').length;
+      const cancelled = bData.filter(x=>x.status==='cancelled').length;
+
+      // Monthly revenue for last 6 months
+      const revByMonth = {};
+      bData.forEach(x => {
+        if (!x.created_at) return;
+        const mo = x.created_at.slice(0,7);
+        if (!revByMonth[mo]) revByMonth[mo] = 0;
+        if (x.status==='confirmed'||x.status==='completed') revByMonth[mo] += (x.total_amount||0);
+      });
+      const monthKeys = Array.from({length:6},(_,i)=>{
+        const d = new Date(); d.setMonth(d.getMonth()-5+i);
+        return d.toISOString().slice(0,7);
+      });
+      setMonthly(monthKeys.map(k=>({ month:k.slice(5), rev:revByMonth[k]||0 })));
+
+      // Top activity types
+      const actCount = {};
+      bData.forEach(x=>{ if (x.activity_type) actCount[x.activity_type]=(actCount[x.activity_type]||0)+1; });
+      setTopAct(Object.entries(actCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>({name:k,count:v})));
+
+      setStats({ bookings:bData.length, guests:g.count||0, revenue, upcoming:u.count||0,
+        confirmed, pending, cancelled, monthRevenue:monthRev,
+        vehicles:(v.data||[]).length, guides:(gd.data||[]).length, drivers:(dr.data||[]).length,
+        activeVehicles:(v.data||[]).filter(x=>x.status==='available').length,
+        activeGuides:(gd.data||[]).filter(x=>x.status==='active').length,
+        activeDrivers:(dr.data||[]).filter(x=>x.status==='available').length,
+      });
       const { data:rb } = await supabase.from('bookings').select('*').eq('company_id', company.id).order('created_at', {ascending:false}).limit(8);
-      setRecent(rb||[]);
-      setLoading(false);
+      setRecent(rb||[]); setLoading(false);
     }
     load();
   }, [company]);
@@ -527,18 +563,99 @@ function DashboardPage() {
   const statusColor = { confirmed:'badge-green', pending:'badge-yellow', cancelled:'badge-red', completed:'badge-blue' };
   const bookingLimit = limits.bookings;
   const pct = bookingLimit ? Math.min(100, Math.round((stats.bookings/bookingLimit)*100)) : null;
+  const maxMonthRev = Math.max(...monthly.map(m=>m.rev), 1);
 
   return (
     <div>
       <PageHeader title="Dashboard" subtitle={`${TIERS[tier].label} Plan`}/>
       {loading ? <div className="text-center py-12 text-gray-400">Loading...</div> : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard label="Bookings" value={stats.bookings} icon="bookings" color="navy"/>
-            <StatCard label="Guests" value={stats.guests} icon="guests" color="gold"/>
-            <StatCard label="Upcoming" value={stats.upcoming} icon="calendar" color="blue"/>
-            <StatCard label="Revenue" value={'R'+stats.revenue.toLocaleString()} icon="billing" color="green"/>
+          {/* ── Top KPI row ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <StatCard label="Total Bookings"  value={stats.bookings}                        icon="bookings"  color="navy"/>
+            <StatCard label="Total Guests"    value={stats.guests}                          icon="guests"    color="gold"/>
+            <StatCard label="Upcoming"        value={stats.upcoming}                        icon="calendar"  color="blue"/>
+            <StatCard label="Total Revenue"   value={'R'+stats.revenue.toLocaleString()}    icon="billing"   color="green"/>
           </div>
+
+          {/* ── Second row: booking status breakdown + resources ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <StatCard label="Confirmed"       value={stats.confirmed}                       icon="check"     color="green"/>
+            <StatCard label="Pending"         value={stats.pending}                         icon="alert"     color="gold"/>
+            <StatCard label="Cancelled"       value={stats.cancelled}                       icon="x"         color="red"/>
+            <StatCard label="This Month Rev"  value={'R'+(stats.monthRevenue||0).toLocaleString()} icon="billing" color="navy"/>
+          </div>
+
+          {/* ── Resource availability ── */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="card p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-semibold text-navy">Vehicles</span>
+                <span className="text-xs text-gray-400">{stats.activeVehicles} available / {stats.vehicles} total</span>
+              </div>
+              <div className="bg-gray-100 rounded-full h-2">
+                <div className="h-2 rounded-full bg-blue-400" style={{width:`${stats.vehicles?Math.round((stats.activeVehicles/stats.vehicles)*100):0}%`}}/>
+              </div>
+            </div>
+            <div className="card p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-semibold text-navy">Guides</span>
+                <span className="text-xs text-gray-400">{stats.activeGuides} active / {stats.guides} total</span>
+              </div>
+              <div className="bg-gray-100 rounded-full h-2">
+                <div className="h-2 rounded-full bg-amber-400" style={{width:`${stats.guides?Math.round((stats.activeGuides/stats.guides)*100):0}%`}}/>
+              </div>
+            </div>
+            <div className="card p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-semibold text-navy">Drivers</span>
+                <span className="text-xs text-gray-400">{stats.activeDrivers} available / {stats.drivers} total</span>
+              </div>
+              <div className="bg-gray-100 rounded-full h-2">
+                <div className="h-2 rounded-full bg-green-400" style={{width:`${stats.drivers?Math.round((stats.activeDrivers/stats.drivers)*100):0}%`}}/>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Charts row ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {/* Revenue bar chart (last 6 months) */}
+            <div className="card p-5">
+              <div className="font-bold text-navy mb-4 text-sm">Revenue — Last 6 Months</div>
+              <div className="flex items-end gap-2 h-28">
+                {monthly.map(m => (
+                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-xs text-gray-400" style={{fontSize:9}}>R{m.rev>999?Math.round(m.rev/1000)+'k':m.rev}</span>
+                    <div className="w-full rounded-t" style={{height:`${Math.round((m.rev/maxMonthRev)*80)+4}px`,background:'#D4A853',minHeight:4}}/>
+                    <span className="text-xs text-gray-500" style={{fontSize:9}}>{m.month}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Activity breakdown */}
+            <div className="card p-5">
+              <div className="font-bold text-navy mb-4 text-sm">Bookings by Activity</div>
+              {topAct.length === 0
+                ? <div className="text-gray-400 text-sm text-center py-6">No bookings yet</div>
+                : topAct.map(a => {
+                  const pct2 = Math.round((a.count/stats.bookings)*100)||0;
+                  return (
+                    <div key={a.name} className="mb-2">
+                      <div className="flex justify-between mb-0.5">
+                        <span className="text-sm capitalize text-gray-600">{a.name}</span>
+                        <span className="text-sm font-semibold text-navy">{a.count} <span className="text-gray-400 font-normal text-xs">({pct2}%)</span></span>
+                      </div>
+                      <div className="bg-gray-100 rounded-full h-1.5">
+                        <div className="h-1.5 rounded-full" style={{width:`${pct2}%`,background:'#0F2540'}}/>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* ── Booking limit bar ── */}
           {bookingLimit && (
             <div className="card p-4 mb-6">
               <div className="flex justify-between mb-2"><span className="text-sm font-semibold text-navy">Booking Limit</span><span className="text-sm text-gray-500">{stats.bookings}/{bookingLimit}</span></div>
@@ -546,6 +663,8 @@ function DashboardPage() {
               {pct > 80 && <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1"><Icon name="alert" size={12}/>Approaching limit</p>}
             </div>
           )}
+
+          {/* ── Recent bookings ── */}
           <div className="card">
             <div className="p-5 border-b border-gray-100 font-bold text-navy">Recent Bookings</div>
             {recent.length === 0 ? <div className="p-8 text-center text-gray-400">No bookings yet</div> : (
@@ -569,7 +688,6 @@ function DashboardPage() {
     </div>
   );
 }
-
 // ─── GENERIC CRUD ────────────────────────
 function CrudPage({ title, icon, table, fields, resourceKey }) {
   const { company, limits } = useAuth();
@@ -942,16 +1060,57 @@ function InvoiceModal({ booking, onClose }) {
 
 // ─── CALENDAR ────────────────────────────
 function CalendarPage() {
-  const { company } = useAuth();
+  const { company, limits } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [cur, setCur] = useState(new Date());
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [newBookingDate, setNewBookingDate] = useState(null);
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [vehicles, setVehicles] = useState([]);
+  const [guides,   setGuides]   = useState([]);
+  const [drivers,  setDrivers]  = useState([]);
 
-  useEffect(() => {
+  const bookingLimit = limits.bookings;
+
+  async function load() {
     if (!company) return;
     const start = new Date(cur.getFullYear(), cur.getMonth(), 1).toISOString();
-    const end = new Date(cur.getFullYear(), cur.getMonth()+1, 0, 23, 59).toISOString();
-    supabase.from('bookings').select('*').eq('company_id', company.id).gte('start_date', start).lte('start_date', end).then(({data})=>setBookings(data||[]));
-  }, [company, cur]);
+    const end   = new Date(cur.getFullYear(), cur.getMonth()+1, 0, 23, 59).toISOString();
+    const [bRes, vRes, gRes, dRes] = await Promise.all([
+      supabase.from('bookings').select('*').eq('company_id', company.id).gte('start_date', start).lte('start_date', end),
+      supabase.from('vehicles').select('id,make,model,registration').eq('company_id', company.id).eq('status','active').order('make'),
+      supabase.from('guides').select('id,full_name').eq('company_id', company.id).eq('status','active').order('full_name'),
+      supabase.from('drivers').select('id,full_name').eq('company_id', company.id).eq('status','active').order('full_name'),
+    ]);
+    setBookings(bRes.data||[]);
+    setVehicles(vRes.data||[]); setGuides(gRes.data||[]); setDrivers(dRes.data||[]);
+  }
+  useEffect(() => { load(); }, [company, cur]);
+
+  function handleDayClick(day) {
+    if (bookingLimit !== null && bookings.length >= bookingLimit) { toast('Booking limit reached — upgrade to add more','error'); return; }
+    const date = new Date(cur.getFullYear(), cur.getMonth(), day);
+    const iso  = date.toISOString().split('T')[0];
+    setNewBookingDate(iso);
+    setForm({ status:'pending', activity_type:'safari', pax:1, total_amount:0, start_date:iso, vehicle_id:'', guide_id:'', driver_id:'' });
+    setShowBookingModal(true);
+  }
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true);
+    const payload = {
+      ...form,
+      company_id: company.id,
+      vehicle_id: form.vehicle_id || null,
+      guide_id:   form.guide_id   || null,
+      driver_id:  form.driver_id  || null,
+      booking_ref: 'OD-' + Date.now().toString(36).toUpperCase(),
+    };
+    const { error } = await supabase.from('bookings').insert(payload);
+    if (error) toast(error.message,'error');
+    else { toast('Booking created'); setShowBookingModal(false); load(); }
+    setSaving(false);
+  }
 
   const y = cur.getFullYear(), m = cur.getMonth();
   const firstDay = new Date(y, m, 1).getDay();
@@ -982,7 +1141,10 @@ function CalendarPage() {
             const db = byDay[day]||[];
             const isToday = today.getDate()===day && today.getMonth()===m && today.getFullYear()===y;
             return (
-              <div key={day} className="min-h-16 p-1.5 rounded-lg border" style={{borderColor: isToday ? '#D4A853' : '#f1f5f9', background: isToday ? '#fffbf0' : 'white'}}>
+              <div key={day} onClick={()=>handleDayClick(day)}
+                className="min-h-16 p-1.5 rounded-lg border cursor-pointer transition-all hover:border-yellow-300 hover:bg-amber-50"
+                style={{borderColor: isToday ? '#D4A853' : '#f1f5f9', background: isToday ? '#fffbf0' : 'white'}}
+                title="Click to add booking">
                 <span className="text-xs font-bold" style={{color: isToday ? '#D4A853' : '#64748b'}}>{day}</span>
                 <div className="mt-0.5 space-y-0.5">
                   {db.slice(0,2).map(b=><div key={b.id} className="text-white text-xs rounded px-1 py-0.5 truncate" style={{background:statusBg[b.status]||'#94a3b8',fontSize:'10px'}}>{b.guest_name?.split(' ')[0]}</div>)}
@@ -992,19 +1154,87 @@ function CalendarPage() {
             );
           })}
         </div>
+        <p className="text-xs text-gray-400 mt-3 text-center">Click any date to create a booking</p>
       </div>
+
+      {showBookingModal && (
+        <div className="modal-overlay" onClick={()=>setShowBookingModal(false)}>
+          <div className="modal max-w-lg w-full" onClick={e=>e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-bold text-navy text-lg">New Booking — {newBookingDate}</h3>
+              <button onClick={()=>setShowBookingModal(false)}><Icon name="x" size={18} className="text-gray-400"/></button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Guest Name *</label><input value={form.guest_name||''} onChange={e=>setForm({...form,guest_name:e.target.value})} required placeholder="John Dlamini"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Email</label><input type="email" value={form.guest_email||''} onChange={e=>setForm({...form,guest_email:e.target.value})} placeholder="guest@email.com"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Phone</label><input value={form.guest_phone||''} onChange={e=>setForm({...form,guest_phone:e.target.value})} placeholder="+27 82 000 0000"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Activity *</label>
+                  <select value={form.activity_type||'safari'} onChange={e=>setForm({...form,activity_type:e.target.value})} required>
+                    {['safari','tour','shuttle','charter','trail'].map(a=><option key={a} value={a}>{a.charAt(0).toUpperCase()+a.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Status</label>
+                  <select value={form.status||'pending'} onChange={e=>setForm({...form,status:e.target.value})}>
+                    {['pending','confirmed','completed','cancelled'].map(st=><option key={st} value={st}>{st.charAt(0).toUpperCase()+st.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Start Date</label><input type="date" value={form.start_date||''} onChange={e=>setForm({...form,start_date:e.target.value})}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">End Date</label><input type="date" value={form.end_date||''} onChange={e=>setForm({...form,end_date:e.target.value})}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Passengers</label><input type="number" value={form.pax||1} onChange={e=>setForm({...form,pax:parseInt(e.target.value)})} min={1}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Total (R)</label><input type="number" value={form.total_amount||0} onChange={e=>setForm({...form,total_amount:parseFloat(e.target.value)})} min={0} step={0.01}/></div>
+                <div className="col-span-2 border-t border-gray-100 pt-2">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Resource Allocation</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Vehicle</label>
+                  <select value={form.vehicle_id||''} onChange={e=>setForm({...form,vehicle_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {vehicles.map(v=><option key={v.id} value={v.id}>{v.make} {v.model} ({v.registration})</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Guide</label>
+                  <select value={form.guide_id||''} onChange={e=>setForm({...form,guide_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {guides.map(g=><option key={g.id} value={g.id}>{g.full_name}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Driver</label>
+                  <select value={form.driver_id||''} onChange={e=>setForm({...form,driver_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {drivers.map(d=><option key={d.id} value={d.id}>{d.full_name}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Notes</label><textarea value={form.notes||''} onChange={e=>setForm({...form,notes:e.target.value})} rows={2} placeholder="Special requirements..."/></div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="btn-primary flex-1" disabled={saving}>{saving?'Saving...':'Create Booking'}</button>
+                <button type="button" className="btn-secondary" onClick={()=>setShowBookingModal(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+
 // ─── MODULE PAGES ────────────────────────
 const GuestsPage = () => <CrudPage title="Guests" icon="guests" table="guests" resourceKey="guests" fields={[
-  { key:'full_name', label:'Name', required:true, primary:true, placeholder:'John Dlamini' },
-  { key:'email', label:'Email', type:'email', placeholder:'guest@email.com' },
-  { key:'phone', label:'Phone', placeholder:'+27 82 000 0000' },
-  { key:'nationality', label:'Nationality', placeholder:'South African' },
-  { key:'id_number', label:'ID/Passport', placeholder:'Identity number' },
-  { key:'notes', label:'Notes', type:'textarea', display:false },
+  { key:'full_name',        label:'Name',            required:true, primary:true, placeholder:'John Dlamini' },
+  { key:'email',            label:'Email',           type:'email',  placeholder:'guest@email.com' },
+  { key:'phone',            label:'Phone',           placeholder:'+27 82 000 0000' },
+  { key:'nationality',      label:'Nationality',     placeholder:'South African' },
+  { key:'id_number',        label:'ID/Passport',     placeholder:'Identity number' },
+  { key:'billing_company',  label:'Billing Company', placeholder:'ABC Tours (Pty) Ltd', display:false },
+  { key:'billing_address',  label:'Billing Address', placeholder:'123 Main Street',     display:false },
+  { key:'billing_city',     label:'City',            placeholder:'Durban',              display:false },
+  { key:'billing_province', label:'Province',        placeholder:'KwaZulu-Natal',       display:false },
+  { key:'billing_postcode', label:'Postal Code',     placeholder:'4001',                display:false },
+  { key:'billing_country',  label:'Country',         placeholder:'South Africa',        display:false },
+  { key:'vat_number',       label:'VAT Number',      placeholder:'4012345678',          display:false },
+  { key:'notes',            label:'Notes',           type:'textarea',                   display:false },
 ]}/>;
 
 const ToursPage = () => <CrudPage title="Tours" icon="tours" table="tours" resourceKey="tours" fields={[
@@ -1045,68 +1275,391 @@ const ChartersPage = () => <CrudPage title="Charters" icon="charters" table="cha
 ]}/>;
 
 function TrailsPage() {
-  const { limits } = useAuth();
-  if (limits.trails === 0) return (
-    <div className="card p-12 text-center"><Icon name="trails" size={48} className="mx-auto mb-3 text-gray-200"/><h2 className="text-xl font-bold text-navy mb-2">Trails</h2><p className="text-gray-500 mb-4">Available from the Basic plan.</p></div>
+  const { company, limits } = useAuth();
+  const [items, setItems]     = useState([]);
+  const [guides, setGuides]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editItem, setEditItem]   = useState(null);
+  const [form, setForm]           = useState({});
+  const [saving, setSaving]       = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const limit = limits.trails;
+
+  async function load() {
+    const [tRes, gRes] = await Promise.all([
+      supabase.from('trails').select('*, guides(full_name)').eq('company_id', company.id).order('created_at', {ascending:false}),
+      supabase.from('guides').select('id,full_name').eq('company_id', company.id).eq('status','active').order('full_name'),
+    ]);
+    setItems(tRes.data||[]); setGuides(gRes.data||[]); setLoading(false);
+  }
+  useEffect(() => { if (company) load(); }, [company]);
+
+  function openCreate() {
+    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    setEditItem(null);
+    setForm({ status:'active', requires_firearm:false, guide_id:'' });
+    setShowModal(true);
+  }
+  function openEdit(item) {
+    setEditItem(item);
+    setForm({
+      name:item.name||'', difficulty:item.difficulty||'moderate',
+      distance_km:item.distance_km||'', duration_hours:item.duration_hours||'',
+      price:item.price||'', max_pax:item.max_pax||'',
+      start_location:item.start_location||'', status:item.status||'active',
+      guide_id:item.guide_id||'',
+      requires_firearm:!!item.requires_firearm,
+      firearm_notes:item.firearm_notes||'',
+    });
+    setShowModal(true);
+  }
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true);
+    const payload = { ...form, company_id: company.id, guide_id: form.guide_id||null };
+    const { error } = editItem
+      ? await supabase.from('trails').update(payload).eq('id', editItem.id)
+      : await supabase.from('trails').insert(payload);
+    if (error) toast(error.message,'error');
+    else { toast(editItem?'Updated':'Trail created'); setShowModal(false); load(); }
+    setSaving(false);
+  }
+  async function handleDelete(id) {
+    if (!confirm('Delete this trail?')) return;
+    await supabase.from('trails').delete().eq('id', id);
+    toast('Deleted'); load();
+  }
+
+  const diffBadge = {easy:'badge-green',moderate:'badge-yellow',hard:'badge-red',extreme:'badge-purple'};
+
+  return (
+    <div>
+      <PageHeader title="Trails" icon="trails"
+        subtitle={limit ? `${items.length}/${limit} used` : `${items.length} total`}
+        action={<button className="btn-primary flex items-center gap-2" onClick={openCreate}><Icon name="plus" size={16}/>Add Trail</button>}
+      />
+      {limit !== null && items.length >= limit && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
+          <span className="text-amber-700 text-sm flex items-center gap-2"><Icon name="alert" size={16}/>Trail limit reached ({limit}/{limit})</span>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+        </div>
+      )}
+      <div className="card">
+        {loading ? <div className="p-8 text-center text-gray-400">Loading...</div> : items.length===0 ? (
+          <div className="p-12 text-center"><Icon name="trails" size={40} className="mx-auto mb-3 text-gray-200"/><p className="text-gray-400">No trails yet</p><button className="btn-primary mt-4" onClick={openCreate}>Add First Trail</button></div>
+        ) : (
+          <table>
+            <thead><tr><th>Name</th><th>Difficulty</th><th>Distance</th><th>Guide</th><th>Firearm</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>{items.map(t=>(
+              <tr key={t.id}>
+                <td className="font-semibold text-navy">{t.name}</td>
+                <td><span className={`badge ${diffBadge[t.difficulty]||'badge-gray'}`}>{t.difficulty}</span></td>
+                <td className="text-gray-500">{t.distance_km ? `${t.distance_km} km` : '—'}</td>
+                <td className="text-gray-500 text-sm">{t.guides?.full_name || <span className="text-gray-300">Unassigned</span>}</td>
+                <td>{t.requires_firearm ? <span className="badge badge-red text-xs">Required</span> : <span className="text-gray-300 text-xs">No</span>}</td>
+                <td><span className={`badge ${t.status==='active'?'badge-green':'badge-gray'}`}>{t.status}</span></td>
+                <td><div className="flex items-center gap-2">
+                  <button className="text-blue-500 hover:text-blue-700" onClick={()=>openEdit(t)}><Icon name="edit" size={14}/></button>
+                  <button className="text-red-400 hover:text-red-600" onClick={()=>handleDelete(t.id)}><Icon name="trash" size={14}/></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+
+      {showModal && (
+        <div className="modal-overlay" onClick={()=>setShowModal(false)}>
+          <div className="modal max-w-lg w-full" onClick={e=>e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-bold text-navy text-lg">{editItem?'Edit Trail':'New Trail'}</h3>
+              <button onClick={()=>setShowModal(false)}><Icon name="x" size={18} className="text-gray-400"/></button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Trail Name *</label><input required value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Drakensberg Summit Trail"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Difficulty</label>
+                  <select value={form.difficulty||'moderate'} onChange={e=>setForm({...form,difficulty:e.target.value})}>
+                    {['easy','moderate','hard','extreme'].map(d=><option key={d} value={d}>{d.charAt(0).toUpperCase()+d.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Status</label>
+                  <select value={form.status||'active'} onChange={e=>setForm({...form,status:e.target.value})}>
+                    <option value="active">Active</option><option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Distance (km)</label><input type="number" min="0" step="0.1" value={form.distance_km||''} onChange={e=>setForm({...form,distance_km:e.target.value})} placeholder="15"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Duration (hrs)</label><input type="number" min="0" step="0.5" value={form.duration_hours||''} onChange={e=>setForm({...form,duration_hours:e.target.value})} placeholder="6"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Price (R)</label><input type="number" min="0" value={form.price||''} onChange={e=>setForm({...form,price:e.target.value})} placeholder="250"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Max Hikers</label><input type="number" min="1" value={form.max_pax||''} onChange={e=>setForm({...form,max_pax:e.target.value})} placeholder="15"/></div>
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Start Location</label><input value={form.start_location||''} onChange={e=>setForm({...form,start_location:e.target.value})} placeholder="Amphitheatre Trailhead"/></div>
+                <div className="col-span-2">
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Assigned Guide</label>
+                  <select value={form.guide_id||''} onChange={e=>setForm({...form,guide_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {guides.map(g=><option key={g.id} value={g.id}>{g.full_name}</option>)}
+                  </select>
+                  {guides.length===0 && <p className="text-xs text-gray-400 mt-1">No active guides — add guides first.</p>}
+                </div>
+                <div className="col-span-2 border-t border-gray-100 pt-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={!!form.requires_firearm} onChange={e=>setForm({...form,requires_firearm:e.target.checked})} className="w-4 h-4"/>
+                    <span className="text-sm font-semibold text-gray-600">Firearm Required on This Trail</span>
+                  </label>
+                </div>
+                {form.requires_firearm && (
+                  <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Firearm Notes</label><input value={form.firearm_notes||''} onChange={e=>setForm({...form,firearm_notes:e.target.value})} placeholder="e.g. .375 H&H minimum, anti-poaching patrol"/></div>
+                )}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="btn-primary flex-1" disabled={saving}>{saving?'Saving...':'Save Trail'}</button>
+                <button type="button" className="btn-secondary" onClick={()=>setShowModal(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
   );
-  return <CrudPage title="Trails" icon="trails" table="trails" resourceKey="trails" fields={[
-    { key:'name', label:'Trail Name', required:true, primary:true, placeholder:'Drakensberg Summit Trail' },
-    { key:'difficulty', label:'Difficulty', type:'select', options:['easy','moderate','hard','extreme'], badge:v=>({easy:'badge-green',moderate:'badge-yellow',hard:'badge-red',extreme:'badge-purple'}[v]||'badge-gray') },
-    { key:'distance_km', label:'Distance (km)', type:'number', placeholder:'15' },
-    { key:'duration_hours', label:'Duration (hrs)', type:'number', placeholder:'6' },
-    { key:'price', label:'Price (R)', type:'number', placeholder:'250' },
-    { key:'max_pax', label:'Max Hikers', type:'number', placeholder:'15' },
-    { key:'start_location', label:'Start', placeholder:'Amphitheatre Trailhead' },
-    { key:'status', label:'Status', type:'select', options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
-  ]}/>;
 }
+
 
 const VehiclesPage = () => <CrudPage title="Vehicles" icon="vehicles" table="vehicles" resourceKey="vehicles" fields={[
-  { key:'registration', label:'Registration', required:true, primary:true, placeholder:'ZN 123 456' },
-  { key:'make', label:'Make', placeholder:'Toyota' },
-  { key:'model', label:'Model', placeholder:'Land Cruiser' },
-  { key:'year', label:'Year', type:'number', placeholder:'2022' },
-  { key:'capacity', label:'Capacity', type:'number', placeholder:'10' },
-  { key:'vehicle_type', label:'Type', type:'select', options:['4x4','van','bus','boat','other'] },
-  { key:'status', label:'Status', type:'select', options:['available','in-use','maintenance'], badge:v=>({available:'badge-green','in-use':'badge-blue',maintenance:'badge-yellow'}[v]||'badge-gray') },
+  { key:'registration',    label:'Registration', required:true, primary:true, placeholder:'ZN 123 456' },
+  { key:'make',            label:'Make',         placeholder:'Toyota' },
+  { key:'model',           label:'Model',        placeholder:'Land Cruiser' },
+  { key:'year',            label:'Year',         type:'number',  placeholder:'2022' },
+  { key:'capacity',        label:'Capacity',     type:'number',  placeholder:'10' },
+  { key:'vehicle_type',    label:'Type',         type:'select',  options:['4x4','van','bus','boat','other'] },
+  { key:'status',          label:'Status',       type:'select',  options:['available','in-use','maintenance'], badge:v=>({available:'badge-green','in-use':'badge-blue',maintenance:'badge-yellow'}[v]||'badge-gray') },
+  { key:'odometer_km',     label:'Odometer (km)',type:'number',  placeholder:'85000', display:false },
+  { key:'last_service_date',label:'Last Service',type:'date',    display:false },
+  { key:'next_service_date',label:'Next Service',type:'date',    display:false },
+  { key:'insurance_expiry', label:'Insurance Expiry', type:'date', display:false },
+  { key:'roadworthy_expiry',label:'Roadworthy Expiry',type:'date', display:false },
+  { key:'notes',           label:'Notes',        type:'textarea',display:false },
 ]}/>;
+
 
 const GuidesPage = () => <CrudPage title="Guides" icon="guides" table="guides" resourceKey="guides" fields={[
-  { key:'full_name', label:'Name', required:true, primary:true, placeholder:'Sipho Ndlovu' },
-  { key:'phone', label:'Phone', placeholder:'+27 82 000 0000' },
-  { key:'email', label:'Email', type:'email', placeholder:'guide@email.com' },
-  { key:'specialisation', label:'Specialisation', placeholder:'Big 5, Birding, Cultural' },
-  { key:'languages', label:'Languages', placeholder:'Zulu, English' },
-  { key:'license_number', label:'License', placeholder:'FGASA Level 1' },
-  { key:'status', label:'Status', type:'select', options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
+  { key:'full_name',           label:'Name',              required:true, primary:true, placeholder:'Sipho Ndlovu' },
+  { key:'phone',               label:'Phone',             placeholder:'+27 82 000 0000' },
+  { key:'email',               label:'Email',             type:'email',    placeholder:'guide@email.com' },
+  { key:'specialisation',      label:'Specialisation',    placeholder:'Big 5, Birding, Cultural' },
+  { key:'languages',           label:'Languages',         placeholder:'Zulu, English' },
+  { key:'license_number',      label:'License / FGASA',   placeholder:'FGASA Level 1' },
+  { key:'status',              label:'Status',            type:'select',   options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
+  { key:'qualifications',      label:'Qualifications',    placeholder:'FGASA NQF2, First Aid Level 3', display:false },
+  { key:'certifications',      label:'Certifications',    placeholder:'PDP, Firearms Competency', display:false },
+  { key:'certification_expiry',label:'Cert Expiry',       type:'date',     display:false },
+  { key:'emergency_contact',   label:'Emergency Contact', placeholder:'Name — +27 82 000 0000', display:false },
+  { key:'photo_url',           label:'Photo URL',         placeholder:'https://...', display:false },
+  { key:'notes',               label:'Notes',             type:'textarea', display:false },
 ]}/>;
+
 
 const DriversPage = () => <CrudPage title="Drivers" icon="drivers" table="drivers" resourceKey="drivers" fields={[
-  { key:'full_name', label:'Name', required:true, primary:true, placeholder:'Thabo Zulu' },
-  { key:'phone', label:'Phone', placeholder:'+27 82 000 0000' },
-  { key:'license_number', label:'License No.', placeholder:'PDP 1234567' },
-  { key:'license_type', label:'Type', type:'select', options:['B','C','EC','PDP'] },
-  { key:'license_expiry', label:'License Expiry', type:'date' },
-  { key:'status', label:'Status', type:'select', options:['available','on-duty','off-duty'], badge:v=>({available:'badge-green','on-duty':'badge-blue','off-duty':'badge-gray'}[v]||'badge-gray') },
+  { key:'full_name',        label:'Name',              required:true, primary:true, placeholder:'Thabo Zulu' },
+  { key:'phone',            label:'Phone',             placeholder:'+27 82 000 0000' },
+  { key:'license_number',   label:'License No.',       placeholder:'PDP 1234567' },
+  { key:'license_type',     label:'Type',              type:'select', options:['B','C','EC','PDP'] },
+  { key:'license_expiry',   label:'License Expiry',    type:'date' },
+  { key:'status',           label:'Status',            type:'select', options:['available','on-duty','off-duty'], badge:v=>({available:'badge-green','on-duty':'badge-blue','off-duty':'badge-gray'}[v]||'badge-gray') },
+  { key:'qualifications',   label:'Qualifications',    placeholder:'Advanced Driver, Defensive Driving', display:false },
+  { key:'certifications',   label:'Certifications',    placeholder:'PDP, DGP Certificate', display:false },
+  { key:'pdp_expiry',       label:'PDP Expiry',        type:'date', display:false },
+  { key:'emergency_contact',label:'Emergency Contact', placeholder:'Name — +27 82 000 0000', display:false },
+  { key:'photo_url',        label:'Photo URL',         placeholder:'https://...', display:false },
+  { key:'notes',            label:'Notes',             type:'textarea', display:false },
 ]}/>;
 
-function SchedulesPage() {
-  const { limits } = useAuth();
-  if (limits.schedules === 0) return (
-    <div className="card p-12 text-center"><Icon name="schedules" size={48} className="mx-auto mb-3 text-gray-200"/><h2 className="text-xl font-bold text-navy mb-2">Schedules</h2><p className="text-gray-500 mb-4">Available from the Basic plan.</p></div>
-  );
-  return <CrudPage title="Schedules" icon="schedules" table="schedules" resourceKey="schedules" fields={[
-    { key:'title', label:'Title', required:true, primary:true, placeholder:'Morning Safari Departure' },
-    { key:'activity_type', label:'Activity', type:'select', options:['safari','tour','shuttle','charter','trail'] },
-    { key:'day_of_week', label:'Day', type:'select', options:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] },
-    { key:'start_time', label:'Start', type:'time' },
-    { key:'end_time', label:'End', type:'time' },
-    { key:'capacity', label:'Capacity', type:'number', placeholder:'8' },
-    { key:'price', label:'Price (R)', type:'number', placeholder:'1500' },
-    { key:'status', label:'Status', type:'select', options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
-  ]}/>;
-}
 
+function SchedulesPage() {
+  const { company, limits } = useAuth();
+  const [items,   setItems]   = useState([]);
+  const [guides,  setGuides]  = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal,  setShowModal]  = useState(false);
+  const [editItem,   setEditItem]   = useState(null);
+  const [form,       setForm]       = useState({});
+  const [saving,     setSaving]     = useState(false);
+  const [showUpgrade,setShowUpgrade]= useState(false);
+  const limit = limits.schedules;
+
+  async function load() {
+    const [sRes, gRes, dRes] = await Promise.all([
+      supabase.from('schedules').select('*, guides(full_name), drivers(full_name)').eq('company_id', company.id).order('day_of_week').order('start_time'),
+      supabase.from('guides').select('id,full_name').eq('company_id', company.id).eq('status','active').order('full_name'),
+      supabase.from('drivers').select('id,full_name').eq('company_id', company.id).neq('status','off-duty').order('full_name'),
+    ]);
+    setItems(sRes.data||[]); setGuides(gRes.data||[]); setDrivers(dRes.data||[]); setLoading(false);
+  }
+  useEffect(() => { if (company) load(); }, [company]);
+
+  function openCreate() {
+    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    setEditItem(null);
+    setForm({ status:'active', activity_type:'safari', guide_id:'', driver_id:'' });
+    setShowModal(true);
+  }
+  function openEdit(item) {
+    setEditItem(item);
+    setForm({
+      title:item.title||'', activity_type:item.activity_type||'safari',
+      day_of_week:item.day_of_week||'Monday',
+      start_time:item.start_time||'', end_time:item.end_time||'',
+      capacity:item.capacity||'', price:item.price||'',
+      guide_id:item.guide_id||'', driver_id:item.driver_id||'',
+      notes:item.notes||'', status:item.status||'active',
+    });
+    setShowModal(true);
+  }
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true);
+    const payload = { ...form, company_id: company.id,
+      guide_id:  form.guide_id  || null,
+      driver_id: form.driver_id || null,
+    };
+    const { error } = editItem
+      ? await supabase.from('schedules').update(payload).eq('id', editItem.id)
+      : await supabase.from('schedules').insert(payload);
+    if (error) toast(error.message,'error');
+    else { toast(editItem?'Updated':'Schedule created'); setShowModal(false); load(); }
+    setSaving(false);
+  }
+  async function handleDelete(id) {
+    if (!confirm('Delete this schedule?')) return;
+    await supabase.from('schedules').delete().eq('id', id);
+    toast('Deleted'); load();
+  }
+
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+  return (
+    <div>
+      <PageHeader title="Schedules" subtitle={limit ? `${items.length}/${limit} shifts` : `${items.length} shifts`}
+        action={<button className="btn-primary flex items-center gap-2" onClick={openCreate}><Icon name="plus" size={16}/>Add Shift</button>}
+      />
+      {limit !== null && items.length >= limit && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
+          <span className="text-amber-700 text-sm">Limit reached</span>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+        </div>
+      )}
+
+      {/* Weekly grid view */}
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-3 mb-6">
+        {DAYS.map(day => {
+          const dayItems = items.filter(i => i.day_of_week === day);
+          return (
+            <div key={day} className="card p-3">
+              <div className="text-xs font-bold text-navy mb-2 border-b border-gray-100 pb-1">{day.slice(0,3)}</div>
+              {dayItems.length === 0
+                ? <div className="text-xs text-gray-300 text-center py-2">—</div>
+                : dayItems.map(item => (
+                  <div key={item.id} onClick={()=>openEdit(item)}
+                    className="mb-1.5 p-1.5 rounded cursor-pointer hover:bg-amber-50 border border-gray-100"
+                    title="Click to edit">
+                    <div className="text-xs font-semibold text-navy truncate">{item.title}</div>
+                    <div className="text-xs text-gray-400">{item.start_time?.slice(0,5)}–{item.end_time?.slice(0,5)}</div>
+                    {item.guides  && <div className="text-xs text-blue-500 truncate">👤 {item.guides.full_name}</div>}
+                    {item.drivers && <div className="text-xs text-green-600 truncate">🚗 {item.drivers.full_name}</div>}
+                  </div>
+                ))
+              }
+              <button onClick={openCreate} className="w-full text-center text-xs text-gray-300 hover:text-amber-500 mt-1">+ add</button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Full list below */}
+      <div className="card">
+        {loading ? <div className="p-8 text-center text-gray-400">Loading...</div> : items.length===0 ? (
+          <div className="p-12 text-center"><Icon name="schedules" size={40} className="mx-auto mb-3 text-gray-200"/><p className="text-gray-400">No shifts scheduled — click a day above or Add Shift to start</p></div>
+        ) : (
+          <table>
+            <thead><tr><th>Title</th><th>Day</th><th>Time</th><th>Activity</th><th>Guide</th><th>Driver</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>{items.map(item=>(
+              <tr key={item.id}>
+                <td className="font-medium text-navy">{item.title}</td>
+                <td className="text-gray-500">{item.day_of_week}</td>
+                <td className="text-gray-500 text-sm">{item.start_time?.slice(0,5)} – {item.end_time?.slice(0,5)}</td>
+                <td className="capitalize text-gray-500">{item.activity_type}</td>
+                <td className="text-gray-500 text-sm">{item.guides?.full_name || '—'}</td>
+                <td className="text-gray-500 text-sm">{item.drivers?.full_name || '—'}</td>
+                <td><span className={`badge ${item.status==='active'?'badge-green':'badge-gray'}`}>{item.status}</span></td>
+                <td><div className="flex gap-2">
+                  <button className="text-blue-500 hover:text-blue-700" onClick={()=>openEdit(item)}><Icon name="edit" size={14}/></button>
+                  <button className="text-red-400 hover:text-red-600" onClick={()=>handleDelete(item.id)}><Icon name="trash" size={14}/></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+
+      {showModal && (
+        <div className="modal-overlay" onClick={()=>setShowModal(false)}>
+          <div className="modal max-w-lg w-full" onClick={e=>e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-bold text-navy text-lg">{editItem?'Edit Shift':'New Shift'}</h3>
+              <button onClick={()=>setShowModal(false)}><Icon name="x" size={18} className="text-gray-400"/></button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Shift Title *</label><input required value={form.title||''} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Morning Safari Departure"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Activity</label>
+                  <select value={form.activity_type||'safari'} onChange={e=>setForm({...form,activity_type:e.target.value})}>
+                    {['safari','tour','shuttle','charter','trail'].map(a=><option key={a} value={a}>{a.charAt(0).toUpperCase()+a.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Day of Week</label>
+                  <select value={form.day_of_week||'Monday'} onChange={e=>setForm({...form,day_of_week:e.target.value})}>
+                    {DAYS.map(d=><option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Start Time</label><input type="time" value={form.start_time||''} onChange={e=>setForm({...form,start_time:e.target.value})}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">End Time</label><input type="time" value={form.end_time||''} onChange={e=>setForm({...form,end_time:e.target.value})}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Capacity</label><input type="number" min="1" value={form.capacity||''} onChange={e=>setForm({...form,capacity:e.target.value})} placeholder="8"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Price (R)</label><input type="number" min="0" value={form.price||''} onChange={e=>setForm({...form,price:e.target.value})} placeholder="1500"/></div>
+
+                <div className="col-span-2 border-t border-gray-100 pt-2">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Assign Staff</p>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Guide</label>
+                  <select value={form.guide_id||''} onChange={e=>setForm({...form,guide_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {guides.map(g=><option key={g.id} value={g.id}>{g.full_name}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Driver</label>
+                  <select value={form.driver_id||''} onChange={e=>setForm({...form,driver_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {drivers.map(d=><option key={d.id} value={d.id}>{d.full_name}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Status</label>
+                  <select value={form.status||'active'} onChange={e=>setForm({...form,status:e.target.value})}>
+                    <option value="active">Active</option><option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Notes</label><input value={form.notes||''} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Any special instructions"/></div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="btn-primary flex-1" disabled={saving}>{saving?'Saving...':'Save Shift'}</button>
+                <button type="button" className="btn-secondary" onClick={()=>setShowModal(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
+  );
+}
 
 // ─── FIREARM REGISTER ────────────────────
 function FirearmRegisterPage() {
