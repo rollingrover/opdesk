@@ -700,6 +700,9 @@ function CrudPage({ title, icon, table, fields, resourceKey }) {
 function BookingsPage() {
   const { company, limits, features } = useAuth();
   const [bookings, setBookings] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [guides,   setGuides]   = useState([]);
+  const [drivers,  setDrivers]  = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editB, setEditB] = useState(null);
@@ -711,23 +714,46 @@ function BookingsPage() {
   const bookingLimit = limits.bookings;
 
   async function load() {
-    const { data } = await supabase.from('bookings').select('*').eq('company_id', company.id).order('created_at', {ascending:false});
-    setBookings(data||[]); setLoading(false);
+    const [bRes, vRes, gRes, dRes] = await Promise.all([
+      supabase.from('bookings').select('*, vehicles(make,model,registration), guides(full_name), drivers(full_name)').eq('company_id', company.id).order('created_at', {ascending:false}),
+      supabase.from('vehicles').select('id,make,model,registration').eq('company_id', company.id).eq('status','active').order('make'),
+      supabase.from('guides').select('id,full_name').eq('company_id', company.id).eq('status','active').order('full_name'),
+      supabase.from('drivers').select('id,full_name').eq('company_id', company.id).eq('status','active').order('full_name'),
+    ]);
+    setBookings(bRes.data||[]);
+    setVehicles(vRes.data||[]);
+    setGuides(gRes.data||[]);
+    setDrivers(dRes.data||[]);
+    setLoading(false);
   }
   useEffect(() => { if (company) load(); }, [company]);
 
   function openCreate() {
     if (bookingLimit !== null && bookings.length >= bookingLimit) { setShowUpgrade(true); return; }
-    setEditB(null); setForm({ status:'pending', activity_type:'safari', pax:1, total_amount:0 }); setShowModal(true);
+    setEditB(null);
+    setForm({ status:'pending', activity_type:'safari', pax:1, total_amount:0, vehicle_id:'', guide_id:'', driver_id:'' });
+    setShowModal(true);
   }
   function openEdit(b) {
     setEditB(b);
-    setForm({ guest_name:b.guest_name, guest_email:b.guest_email||'', guest_phone:b.guest_phone||'', activity_type:b.activity_type, start_date:b.start_date?.split('T')[0]||'', end_date:b.end_date?.split('T')[0]||'', pax:b.pax||1, total_amount:b.total_amount||0, status:b.status, notes:b.notes||'' });
+    setForm({
+      guest_name:b.guest_name, guest_email:b.guest_email||'', guest_phone:b.guest_phone||'',
+      activity_type:b.activity_type, start_date:b.start_date?.split('T')[0]||'',
+      end_date:b.end_date?.split('T')[0]||'', pax:b.pax||1, total_amount:b.total_amount||0,
+      status:b.status, notes:b.notes||'',
+      vehicle_id:b.vehicle_id||'', guide_id:b.guide_id||'', driver_id:b.driver_id||'',
+    });
     setShowModal(true);
   }
   async function handleSave(e) {
     e.preventDefault(); setSaving(true);
-    const payload = { ...form, company_id: company.id };
+    const payload = {
+      ...form,
+      company_id: company.id,
+      vehicle_id: form.vehicle_id || null,
+      guide_id:   form.guide_id   || null,
+      driver_id:  form.driver_id  || null,
+    };
     if (!editB) payload.booking_ref = 'OD-' + Date.now().toString(36).toUpperCase();
     const { error } = editB
       ? await supabase.from('bookings').update(payload).eq('id', editB.id)
@@ -745,6 +771,12 @@ function BookingsPage() {
   const statusColor = { confirmed:'badge-green', pending:'badge-yellow', cancelled:'badge-red', completed:'badge-blue' };
   const filtered = filter==='all' ? bookings : bookings.filter(b=>b.status===filter);
 
+  const AllocBadge = ({icon, label}) => label ? (
+    <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 rounded px-1.5 py-0.5">
+      <Icon name={icon} size={11}/>{label}
+    </span>
+  ) : null;
+
   return (
     <div>
       <PageHeader
@@ -756,8 +788,8 @@ function BookingsPage() {
         </div>}
       />
       <div className="flex gap-2 mb-4">
-        {['all','pending','confirmed','completed','cancelled'].map(s=>(
-          <button key={s} onClick={()=>setFilter(s)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${filter===s?'bg-navy text-white':'bg-white text-gray-500 hover:bg-gray-50'}`}>{s.charAt(0).toUpperCase()+s.slice(1)}</button>
+        {['all','pending','confirmed','completed','cancelled'].map(st=>(
+          <button key={st} onClick={()=>setFilter(st)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${filter===st?'bg-navy text-white':'bg-white text-gray-500 hover:bg-gray-50'}`}>{st.charAt(0).toUpperCase()+st.slice(1)}</button>
         ))}
       </div>
       <div className="card">
@@ -765,13 +797,20 @@ function BookingsPage() {
           <div className="p-12 text-center"><Icon name="bookings" size={40} className="mx-auto mb-3 text-gray-200"/><p className="text-gray-400">No bookings</p><button className="btn-primary mt-4" onClick={openCreate}>Create First Booking</button></div>
         ) : (
           <table>
-            <thead><tr><th>Ref</th><th>Guest</th><th>Activity</th><th>Date</th><th>Pax</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Ref</th><th>Guest</th><th>Activity</th><th>Date</th><th>Allocated</th><th>Pax</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>{filtered.map(b => (
               <tr key={b.id}>
                 <td><code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono">{b.booking_ref}</code></td>
                 <td><div className="font-semibold text-navy">{b.guest_name}</div><div className="text-xs text-gray-400">{b.guest_email}</div></td>
                 <td className="capitalize text-gray-500">{b.activity_type}</td>
                 <td className="text-gray-500 text-sm">{b.start_date ? new Date(b.start_date).toLocaleDateString('en-ZA') : '—'}</td>
+                <td>
+                  <div className="flex flex-col gap-0.5">
+                    <AllocBadge icon="vehicles" label={b.vehicles ? `${b.vehicles.make} ${b.vehicles.model}` : null}/>
+                    <AllocBadge icon="guides"   label={b.guides?.full_name}/>
+                    <AllocBadge icon="drivers"  label={b.drivers?.full_name}/>
+                  </div>
+                </td>
                 <td className="text-center">{b.pax}</td>
                 <td className="font-semibold">R{(b.total_amount||0).toLocaleString()}</td>
                 <td><span className={`badge ${statusColor[b.status]||'badge-gray'}`}>{b.status}</span></td>
@@ -789,7 +828,10 @@ function BookingsPage() {
       {showModal && (
         <div className="modal-overlay" onClick={()=>setShowModal(false)}>
           <div className="modal max-w-lg w-full" onClick={e=>e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-5"><h3 className="font-bold text-navy text-lg">{editB?'Edit Booking':'New Booking'}</h3><button onClick={()=>setShowModal(false)}><Icon name="x" size={18} className="text-gray-400"/></button></div>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-bold text-navy text-lg">{editB?'Edit Booking':'New Booking'}</h3>
+              <button onClick={()=>setShowModal(false)}><Icon name="x" size={18} className="text-gray-400"/></button>
+            </div>
             <form onSubmit={handleSave} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Guest Name *</label><input value={form.guest_name||''} onChange={e=>setForm({...form,guest_name:e.target.value})} required placeholder="John Dlamini"/></div>
@@ -802,16 +844,51 @@ function BookingsPage() {
                 </div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Status</label>
                   <select value={form.status||'pending'} onChange={e=>setForm({...form,status:e.target.value})}>
-                    {['pending','confirmed','completed','cancelled'].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                    {['pending','confirmed','completed','cancelled'].map(st=><option key={st} value={st}>{st.charAt(0).toUpperCase()+st.slice(1)}</option>)}
                   </select>
                 </div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Start Date</label><input type="date" value={form.start_date||''} onChange={e=>setForm({...form,start_date:e.target.value})}/></div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">End Date</label><input type="date" value={form.end_date||''} onChange={e=>setForm({...form,end_date:e.target.value})}/></div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Passengers</label><input type="number" value={form.pax||1} onChange={e=>setForm({...form,pax:parseInt(e.target.value)})} min={1}/></div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Total (R)</label><input type="number" value={form.total_amount||0} onChange={e=>setForm({...form,total_amount:parseFloat(e.target.value)})} min={0} step={0.01}/></div>
+
+                {/* ── Resource Allocation ── */}
+                <div className="col-span-2">
+                  <div className="border-t border-gray-100 pt-3 mt-1 mb-1">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Resource Allocation</p>
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Vehicle</label>
+                  <select value={form.vehicle_id||''} onChange={e=>setForm({...form,vehicle_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {vehicles.map(v=><option key={v.id} value={v.id}>{v.make} {v.model} ({v.registration})</option>)}
+                  </select>
+                  {vehicles.length===0 && <p className="text-xs text-gray-400 mt-1">No vehicles added yet — go to Vehicles to add one.</p>}
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Guide</label>
+                  <select value={form.guide_id||''} onChange={e=>setForm({...form,guide_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {guides.map(g=><option key={g.id} value={g.id}>{g.full_name}</option>)}
+                  </select>
+                  {guides.length===0 && <p className="text-xs text-gray-400 mt-1">No guides added yet.</p>}
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Driver</label>
+                  <select value={form.driver_id||''} onChange={e=>setForm({...form,driver_id:e.target.value})}>
+                    <option value="">— None —</option>
+                    {drivers.map(d=><option key={d.id} value={d.id}>{d.full_name}</option>)}
+                  </select>
+                  {drivers.length===0 && <p className="text-xs text-gray-400 mt-1">No drivers added yet.</p>}
+                </div>
+
                 <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Notes</label><textarea value={form.notes||''} onChange={e=>setForm({...form,notes:e.target.value})} rows={2} placeholder="Special requirements..."/></div>
               </div>
-              <div className="flex gap-3 pt-2"><button type="submit" className="btn-primary flex-1" disabled={saving}>{saving?'Saving...':'Save Booking'}</button><button type="button" className="btn-secondary" onClick={()=>setShowModal(false)}>Cancel</button></div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="btn-primary flex-1" disabled={saving}>{saving?'Saving...':'Save Booking'}</button>
+                <button type="button" className="btn-secondary" onClick={()=>setShowModal(false)}>Cancel</button>
+              </div>
             </form>
           </div>
         </div>
@@ -822,6 +899,7 @@ function BookingsPage() {
     </div>
   );
 }
+
 
 // ─── INVOICE ─────────────────────────────
 function InvoiceModal({ booking, onClose }) {
