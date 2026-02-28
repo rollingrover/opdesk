@@ -1425,54 +1425,767 @@ function TrailsPage() {
 }
 
 
-const VehiclesPage = () => <CrudPage title="Vehicles" icon="vehicles" table="vehicles" resourceKey="vehicles" fields={[
-  { key:'registration',    label:'Registration', required:true, primary:true, placeholder:'ZN 123 456' },
-  { key:'make',            label:'Make',         placeholder:'Toyota' },
-  { key:'model',           label:'Model',        placeholder:'Land Cruiser' },
-  { key:'year',            label:'Year',         type:'number',  placeholder:'2022' },
-  { key:'capacity',        label:'Capacity',     type:'number',  placeholder:'10' },
-  { key:'vehicle_type',    label:'Type',         type:'select',  options:['4x4','van','bus','boat','other'] },
-  { key:'status',          label:'Status',       type:'select',  options:['available','in-use','maintenance'], badge:v=>({available:'badge-green','in-use':'badge-blue',maintenance:'badge-yellow'}[v]||'badge-gray') },
-  { key:'odometer_km',     label:'Odometer (km)',type:'number',  placeholder:'85000', display:false },
-  { key:'last_service_date',label:'Last Service',type:'date',    display:false },
-  { key:'next_service_date',label:'Next Service',type:'date',    display:false },
-  { key:'insurance_expiry', label:'Insurance Expiry', type:'date', display:false },
-  { key:'roadworthy_expiry',label:'Roadworthy Expiry',type:'date', display:false },
-  { key:'notes',           label:'Notes',        type:'textarea',display:false },
-]}/>;
+function VehiclesPage() {
+  const { company, limits } = useAuth();
+  const [items,  setItems]  = useState([]);
+  const [loading,setLoading]= useState(true);
+  const [view,   setView]   = useState('list');
+  const [editItem,setEditItem]= useState(null);
+  const [form,   setForm]   = useState({});
+  const [saving, setSaving] = useState(false);
+  const [showUpgrade,setShowUpgrade]= useState(false);
+  const limit = limits.vehicles;
+
+  async function load() {
+    const { data } = await supabase.from('vehicles').select('*').eq('company_id', company.id).order('created_at',{ascending:false});
+    setItems(data||[]); setLoading(false);
+  }
+  useEffect(() => { if (company) load(); }, [company]);
+
+  function openCreate() {
+    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    setEditItem(null); setForm({ status:'available' }); setView('form');
+  }
+  function openEdit(item) {
+    setEditItem(item);
+    const f = {};
+    ['registration','make','model','year','capacity','vehicle_type','status',
+     'odometer_km','last_service_date','next_service_date','insurance_expiry','roadworthy_expiry',
+     'licence_disc_url','roadworthy_doc_url','insurance_doc_url','concession_doc_url','doc_urls','notes'
+    ].forEach(k => { f[k] = item[k] ?? ''; });
+    setForm(f); setView('form');
+  }
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true);
+    const payload = { ...form, company_id: company.id, doc_urls: form.doc_urls || [] };
+    const { error } = editItem
+      ? await supabase.from('vehicles').update(payload).eq('id', editItem.id)
+      : await supabase.from('vehicles').insert(payload);
+    if (error) toast(error.message,'error');
+    else { toast(editItem?'Vehicle updated':'Vehicle added'); setView('list'); load(); }
+    setSaving(false);
+  }
+  async function handleDelete(id) {
+    if (!confirm('Delete this vehicle?')) return;
+    await supabase.from('vehicles').delete().eq('id', id);
+    toast('Deleted'); load();
+  }
+  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  const statusBadge = { available:'badge-green','in-use':'badge-blue', maintenance:'badge-yellow' };
+
+  if (view === 'form') return (
+    <div>
+      <PageHeader
+        title={editItem ? `Edit — ${editItem.registration}` : 'New Vehicle'}
+        subtitle="Details, service records & documents"
+        action={<button className="btn-secondary" onClick={()=>setView('list')}>← Back</button>}
+      />
+      <form onSubmit={handleSave}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* ── Left: Vehicle Info ── */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Vehicle Details</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Registration *</label><input required value={form.registration||''} onChange={e=>setF('registration',e.target.value)} placeholder="ZN 123 456" className="uppercase"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Make</label><input value={form.make||''} onChange={e=>setF('make',e.target.value)} placeholder="Toyota"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Model</label><input value={form.model||''} onChange={e=>setF('model',e.target.value)} placeholder="Land Cruiser"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Year</label><input type="number" value={form.year||''} onChange={e=>setF('year',e.target.value)} placeholder="2022"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Capacity</label><input type="number" value={form.capacity||''} onChange={e=>setF('capacity',e.target.value)} placeholder="10"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Type</label>
+                  <select value={form.vehicle_type||''} onChange={e=>setF('vehicle_type',e.target.value)}>
+                    <option value="">— Select —</option>
+                    {['4x4','van','bus','boat','yacht','other'].map(t=><option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Status</label>
+                  <select value={form.status||'available'} onChange={e=>setF('status',e.target.value)}>
+                    {['available','in-use','maintenance'].map(s=><option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Notes</label><textarea rows={2} value={form.notes||''} onChange={e=>setF('notes',e.target.value)}/></div>
+              </div>
+            </div>
+
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Service & Compliance Tracking</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Odometer (km)</label><input type="number" value={form.odometer_km||''} onChange={e=>setF('odometer_km',e.target.value)} placeholder="85000"/></div>
+                <div/>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Last Service Date</label><input type="date" value={form.last_service_date||''} onChange={e=>setF('last_service_date',e.target.value)}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Next Service Date</label><input type="date" value={form.next_service_date||''} onChange={e=>setF('next_service_date',e.target.value)}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Insurance Expiry</label><input type="date" value={form.insurance_expiry||''} onChange={e=>setF('insurance_expiry',e.target.value)}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Roadworthy Expiry</label><input type="date" value={form.roadworthy_expiry||''} onChange={e=>setF('roadworthy_expiry',e.target.value)}/></div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right: Documents ── */}
+          <div className="space-y-4">
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Documents</h3>
+              <p className="text-xs text-gray-400 mb-3">PDF or image, max 10MB</p>
+              {editItem ? (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 mb-1">Licence Disc</p>
+                    <FileUploadBtn label="Upload" accept="image/*,.pdf" bucket="company-assets"
+                      path={`vehicles/${editItem.id}/licence-disc`}
+                      currentUrl={form.licence_disc_url}
+                      onUploaded={url=>setF('licence_disc_url',url)}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 mb-1">Roadworthy Certificate</p>
+                    <FileUploadBtn label="Upload" accept="image/*,.pdf" bucket="company-assets"
+                      path={`vehicles/${editItem.id}/roadworthy`}
+                      currentUrl={form.roadworthy_doc_url}
+                      onUploaded={url=>setF('roadworthy_doc_url',url)}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 mb-1">Insurance Certificate</p>
+                    <FileUploadBtn label="Upload" accept="image/*,.pdf" bucket="company-assets"
+                      path={`vehicles/${editItem.id}/insurance`}
+                      currentUrl={form.insurance_doc_url}
+                      onUploaded={url=>setF('insurance_doc_url',url)}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 mb-1">Operating Concession / Permit</p>
+                    <FileUploadBtn label="Upload" accept="image/*,.pdf" bucket="company-assets"
+                      path={`vehicles/${editItem.id}/concession`}
+                      currentUrl={form.concession_doc_url}
+                      onUploaded={url=>setF('concession_doc_url',url)}
+                    />
+                  </div>
+                  {/* Extra documents (any) */}
+                  {(Array.isArray(form.doc_urls)?form.doc_urls:[]).map((doc,i)=>(
+                    <div key={i}>
+                      <p className="text-xs font-bold text-gray-600 mb-1">{doc.label}</p>
+                      <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">View</a>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-xs text-gray-400">Save vehicle first to upload documents</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button type="submit" className="btn-primary px-8" disabled={saving}>{saving?'Saving...':'Save Vehicle'}</button>
+          <button type="button" className="btn-secondary" onClick={()=>setView('list')}>Cancel</button>
+        </div>
+      </form>
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
+  );
+
+  // ── List view ──
+  return (
+    <div>
+      <PageHeader
+        title="Vehicles"
+        subtitle={limit ? `${items.length}/${limit} used` : `${items.length} total`}
+        action={<button className="btn-primary flex items-center gap-2" onClick={openCreate}><Icon name="plus" size={16}/>Add Vehicle</button>}
+      />
+      {limit !== null && items.length >= limit && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
+          <span className="text-amber-700 text-sm">Vehicle limit reached ({limit}/{limit})</span>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+        </div>
+      )}
+      <div className="card">
+        {loading ? <div className="p-8 text-center text-gray-400">Loading...</div> : items.length === 0 ? (
+          <div className="p-12 text-center">
+            <Icon name="vehicles" size={40} className="mx-auto mb-3 text-gray-200"/>
+            <p className="text-gray-400">No vehicles yet</p>
+            <button className="btn-primary mt-4" onClick={openCreate}>Add First Vehicle</button>
+          </div>
+        ) : (
+          <table>
+            <thead><tr><th>Registration</th><th>Make / Model</th><th>Type</th><th>Capacity</th><th>Next Service</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>{items.map(v=>(
+              <tr key={v.id}>
+                <td><code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-bold">{v.registration}</code></td>
+                <td>
+                  <div className="font-medium text-navy">{v.make} {v.model}</div>
+                  <div className="text-xs text-gray-400">{v.year||''}</div>
+                </td>
+                <td className="capitalize text-gray-500">{v.vehicle_type||'—'}</td>
+                <td className="text-gray-500">{v.capacity ? `${v.capacity} pax` : '—'}</td>
+                <td className="text-gray-500 text-sm">
+                  {v.next_service_date
+                    ? (() => {
+                        const days = Math.ceil((new Date(v.next_service_date)-new Date())/(1000*60*60*24));
+                        return <span className={days<=14?'text-red-500 font-semibold':days<=30?'text-amber-500':''}>{new Date(v.next_service_date).toLocaleDateString('en-ZA')}</span>;
+                      })()
+                    : '—'}
+                </td>
+                <td><span className={`badge ${statusBadge[v.status]||'badge-gray'}`}>{v.status}</span></td>
+                <td><div className="flex gap-2">
+                  <button className="text-blue-500 hover:text-blue-700" onClick={()=>openEdit(v)}><Icon name="edit" size={14}/></button>
+                  <button className="text-red-400 hover:text-red-600" onClick={()=>handleDelete(v.id)}><Icon name="trash" size={14}/></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
+  );
+}
 
 
-const GuidesPage = () => <CrudPage title="Guides" icon="guides" table="guides" resourceKey="guides" fields={[
-  { key:'full_name',           label:'Name',              required:true, primary:true, placeholder:'Sipho Ndlovu' },
-  { key:'phone',               label:'Phone',             placeholder:'+27 82 000 0000' },
-  { key:'email',               label:'Email',             type:'email',    placeholder:'guide@email.com' },
-  { key:'specialisation',      label:'Specialisation',    placeholder:'Big 5, Birding, Cultural' },
-  { key:'languages',           label:'Languages',         placeholder:'Zulu, English' },
-  { key:'license_number',      label:'License / FGASA',   placeholder:'FGASA Level 1' },
-  { key:'status',              label:'Status',            type:'select',   options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
-  { key:'qualifications',      label:'Qualifications',    placeholder:'FGASA NQF2, First Aid Level 3', display:false },
-  { key:'certifications',      label:'Certifications',    placeholder:'PDP, Firearms Competency', display:false },
-  { key:'certification_expiry',label:'Cert Expiry',       type:'date',     display:false },
-  { key:'emergency_contact',   label:'Emergency Contact', placeholder:'Name — +27 82 000 0000', display:false },
-  { key:'photo_url',           label:'Photo URL',         placeholder:'https://...', display:false },
-  { key:'notes',               label:'Notes',             type:'textarea', display:false },
-]}/>;
+function FileUploadBtn({ label, accept, bucket, path, currentUrl, onUploaded, small }) {
+  const [uploading, setUploading] = useState(false);
+  async function handleChange(e) {
+    const file = e.target.files[0]; if (!file) return;
+    if (file.size > 10*1024*1024) { toast('File must be under 10MB','error'); return; }
+    setUploading(true);
+    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert:true });
+    if (error) { toast(error.message,'error'); setUploading(false); return; }
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+    onUploaded(publicUrl);
+    setUploading(false);
+  }
+  const base = small ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1.5';
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {currentUrl && (
+        <a href={currentUrl} target="_blank" rel="noreferrer"
+          className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+          <Icon name="eye" size={12}/> View
+        </a>
+      )}
+      <label className={`btn-secondary cursor-pointer ${base}`}>
+        {uploading ? 'Uploading…' : (currentUrl ? 'Replace' : label)}
+        <input type="file" accept={accept||'image/*,.pdf'} className="hidden" onChange={handleChange} disabled={uploading}/>
+      </label>
+    </div>
+  );
+}
 
+// ─── SHARED: CERT ROW ────────────────────
+// Renders a checkbox + optional level text + expiry date for one certification
+function CertRow({ label, checked, onToggle, level, onLevel, levelPlaceholder, expiry, onExpiry, showLevel }) {
+  return (
+    <div className="border border-gray-100 rounded-lg p-3 mb-2">
+      <label className="flex items-center gap-2 cursor-pointer mb-2">
+        <input type="checkbox" checked={!!checked} onChange={e=>onToggle(e.target.checked)} className="w-4 h-4 accent-yellow-500"/>
+        <span className="text-sm font-semibold text-gray-700">{label}</span>
+      </label>
+      {checked && (
+        <div className="pl-6 grid grid-cols-2 gap-2">
+          {showLevel && (
+            <div className="col-span-2">
+              <label className="text-xs text-gray-500 block mb-0.5">Level / Grade</label>
+              <input value={level||''} onChange={e=>onLevel(e.target.value)} placeholder={levelPlaceholder||'e.g. Level 2'} className="text-sm"/>
+            </div>
+          )}
+          <div className="col-span-2 md:col-span-1">
+            <label className="text-xs text-gray-500 block mb-0.5">Expiry Date</label>
+            <input type="date" value={expiry||''} onChange={e=>onExpiry(e.target.value)}/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
-const DriversPage = () => <CrudPage title="Drivers" icon="drivers" table="drivers" resourceKey="drivers" fields={[
-  { key:'full_name',        label:'Name',              required:true, primary:true, placeholder:'Thabo Zulu' },
-  { key:'phone',            label:'Phone',             placeholder:'+27 82 000 0000' },
-  { key:'license_number',   label:'License No.',       placeholder:'PDP 1234567' },
-  { key:'license_type',     label:'Type',              type:'select', options:['B','C','EC','PDP'] },
-  { key:'license_expiry',   label:'License Expiry',    type:'date' },
-  { key:'status',           label:'Status',            type:'select', options:['available','on-duty','off-duty'], badge:v=>({available:'badge-green','on-duty':'badge-blue','off-duty':'badge-gray'}[v]||'badge-gray') },
-  { key:'qualifications',   label:'Qualifications',    placeholder:'Advanced Driver, Defensive Driving', display:false },
-  { key:'certifications',   label:'Certifications',    placeholder:'PDP, DGP Certificate', display:false },
-  { key:'pdp_expiry',       label:'PDP Expiry',        type:'date', display:false },
-  { key:'emergency_contact',label:'Emergency Contact', placeholder:'Name — +27 82 000 0000', display:false },
-  { key:'photo_url',        label:'Photo URL',         placeholder:'https://...', display:false },
-  { key:'notes',            label:'Notes',             type:'textarea', display:false },
-]}/>;
+// ─── GUIDE FORM PAGE ─────────────────────
+function GuidesPage() {
+  const { company, limits } = useAuth();
+  const [items,  setItems]  = useState([]);
+  const [loading,setLoading]= useState(true);
+  const [view,   setView]   = useState('list'); // 'list' | 'form'
+  const [editItem,setEditItem]= useState(null);
+  const [form,   setForm]   = useState({});
+  const [saving, setSaving] = useState(false);
+  const [showUpgrade,setShowUpgrade]= useState(false);
+  const limit = limits.guides;
+
+  async function load() {
+    const { data } = await supabase.from('guides').select('*').eq('company_id', company.id).order('created_at',{ascending:false});
+    setItems(data||[]); setLoading(false);
+  }
+  useEffect(() => { if (company) load(); }, [company]);
+
+  function openCreate() {
+    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    setEditItem(null);
+    setForm({ status:'active', cert_fgasa:false, cert_first_aid:false, cert_firearms:false, cert_pdp:false });
+    setView('form');
+  }
+  function openEdit(item) {
+    setEditItem(item);
+    const f = {};
+    ['full_name','phone','email','specialisation','languages','license_number','status',
+     'cert_fgasa','cert_fgasa_level','cert_fgasa_expiry',
+     'cert_first_aid','cert_first_aid_level','cert_first_aid_expiry',
+     'cert_firearms','cert_firearms_expiry',
+     'cert_pdp','cert_pdp_expiry',
+     'emergency_contact','id_photo_url','photo_url','cert_doc_urls','notes'
+    ].forEach(k => { f[k] = item[k] ?? (k.startsWith('cert_') && typeof item[k] === 'undefined' ? false : ''); });
+    setForm(f); setView('form');
+  }
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true);
+    const payload = { ...form, company_id: company.id,
+      cert_doc_urls: form.cert_doc_urls || [] };
+    const { error } = editItem
+      ? await supabase.from('guides').update(payload).eq('id', editItem.id)
+      : await supabase.from('guides').insert(payload);
+    if (error) toast(error.message,'error');
+    else { toast(editItem?'Guide updated':'Guide added'); setView('list'); load(); }
+    setSaving(false);
+  }
+  async function handleDelete(id) {
+    if (!confirm('Delete this guide?')) return;
+    await supabase.from('guides').delete().eq('id', id);
+    toast('Deleted'); load();
+  }
+  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  const docPath = (type) => `guides/${editItem?.id||'new-guide'}/${type}-${Date.now()}`;
+
+  if (view === 'form') return (
+    <div>
+      <PageHeader
+        title={editItem ? 'Edit Guide' : 'New Guide'}
+        subtitle="Profile & Certifications"
+        action={<button className="btn-secondary" onClick={()=>setView('list')}>← Back</button>}
+      />
+      <form onSubmit={handleSave}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* ── Left: Basic Info + Photo ── */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Personal Details</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Full Name *</label>
+                  <input required value={form.full_name||''} onChange={e=>setF('full_name',e.target.value)} placeholder="Sipho Ndlovu"/>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Phone</label><input value={form.phone||''} onChange={e=>setF('phone',e.target.value)} placeholder="+27 82 000 0000"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Email</label><input type="email" value={form.email||''} onChange={e=>setF('email',e.target.value)} placeholder="guide@email.com"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Specialisation</label><input value={form.specialisation||''} onChange={e=>setF('specialisation',e.target.value)} placeholder="Big 5, Birding, Cultural"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Languages</label><input value={form.languages||''} onChange={e=>setF('languages',e.target.value)} placeholder="Zulu, English"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">License No.</label><input value={form.license_number||''} onChange={e=>setF('license_number',e.target.value)} placeholder="FGASA Level 1"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Status</label>
+                  <select value={form.status||'active'} onChange={e=>setF('status',e.target.value)}>
+                    <option value="active">Active</option><option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Emergency Contact</label><input value={form.emergency_contact||''} onChange={e=>setF('emergency_contact',e.target.value)} placeholder="Name — +27 82 000 0000"/></div>
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Notes</label><textarea rows={2} value={form.notes||''} onChange={e=>setF('notes',e.target.value)}/></div>
+              </div>
+            </div>
+
+            {/* ── Certifications ── */}
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Certifications & Qualifications</h3>
+              <CertRow
+                label="FGASA Certification"
+                checked={form.cert_fgasa} onToggle={v=>setF('cert_fgasa',v)}
+                level={form.cert_fgasa_level} onLevel={v=>setF('cert_fgasa_level',v)} levelPlaceholder="e.g. NQF2 Level 1" showLevel={true}
+                expiry={form.cert_fgasa_expiry} onExpiry={v=>setF('cert_fgasa_expiry',v)}
+              />
+              <CertRow
+                label="First Aid"
+                checked={form.cert_first_aid} onToggle={v=>setF('cert_first_aid',v)}
+                level={form.cert_first_aid_level} onLevel={v=>setF('cert_first_aid_level',v)} levelPlaceholder="e.g. Level 3 / Wilderness" showLevel={true}
+                expiry={form.cert_first_aid_expiry} onExpiry={v=>setF('cert_first_aid_expiry',v)}
+              />
+              <CertRow
+                label="Firearms Competency"
+                checked={form.cert_firearms} onToggle={v=>setF('cert_firearms',v)}
+                expiry={form.cert_firearms_expiry} onExpiry={v=>setF('cert_firearms_expiry',v)}
+              />
+              <CertRow
+                label="PDP (Professional Driving Permit)"
+                checked={form.cert_pdp} onToggle={v=>setF('cert_pdp',v)}
+                expiry={form.cert_pdp_expiry} onExpiry={v=>setF('cert_pdp_expiry',v)}
+              />
+            </div>
+          </div>
+
+          {/* ── Right: Documents ── */}
+          <div className="space-y-4">
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">ID & Photo</h3>
+              <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden mb-3 mx-auto">
+                {(form.id_photo_url||form.photo_url)
+                  ? <img src={form.id_photo_url||form.photo_url} alt="ID" className="w-full h-full object-cover"/>
+                  : <Icon name="guides" size={32} className="text-gray-200"/>}
+              </div>
+              <p className="text-xs text-gray-400 text-center mb-2">ID Photo (JPG/PNG, max 10MB)</p>
+              {editItem && (
+                <FileUploadBtn
+                  label="Upload ID Photo"
+                  accept="image/*"
+                  bucket="staff-docs"
+                  path={`guides/${editItem.id}/id-photo.jpg`}
+                  currentUrl={form.id_photo_url}
+                  onUploaded={url=>setF('id_photo_url',url)}
+                />
+              )}
+              {!editItem && <p className="text-xs text-gray-400 text-center">Save guide first, then upload photo</p>}
+            </div>
+
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Documents</h3>
+              <p className="text-xs text-gray-400 mb-3">PDF or image, max 10MB each</p>
+              {editItem ? (
+                <div className="space-y-3">
+                  {[
+                    {label:'FGASA Certificate', key:'cert_fgasa_doc', path:`guides/${editItem.id}/fgasa-cert`},
+                    {label:'First Aid Certificate', key:'cert_firstaid_doc', path:`guides/${editItem.id}/firstaid-cert`},
+                    {label:'Firearms Cert', key:'cert_firearms_doc', path:`guides/${editItem.id}/firearms-cert`},
+                    {label:'PDP / Driving Licence', key:'cert_pdp_doc', path:`guides/${editItem.id}/pdp`},
+                    {label:'Other Document', key:'cert_other_doc', path:`guides/${editItem.id}/other-${Date.now()}`},
+                  ].map(doc => {
+                    const urls = Array.isArray(form.cert_doc_urls) ? form.cert_doc_urls : [];
+                    const existing = urls.find(u => u.label === doc.label);
+                    return (
+                      <div key={doc.key}>
+                        <p className="text-xs font-semibold text-gray-600 mb-1">{doc.label}</p>
+                        <FileUploadBtn
+                          label="Upload"
+                          accept="image/*,.pdf"
+                          bucket="staff-docs"
+                          path={doc.path}
+                          currentUrl={existing?.url}
+                          onUploaded={url => {
+                            const newUrls = urls.filter(u => u.label !== doc.label);
+                            setF('cert_doc_urls', [...newUrls, { label: doc.label, url }]);
+                          }}
+                          small
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <p className="text-xs text-gray-400">Save guide first to upload documents</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button type="submit" className="btn-primary px-8" disabled={saving}>{saving?'Saving...':'Save Guide'}</button>
+          <button type="button" className="btn-secondary" onClick={()=>setView('list')}>Cancel</button>
+        </div>
+      </form>
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
+  );
+
+  // ── List view ──
+  return (
+    <div>
+      <PageHeader
+        title="Guides"
+        subtitle={limit ? `${items.length}/${limit} used` : `${items.length} total`}
+        action={<button className="btn-primary flex items-center gap-2" onClick={openCreate}><Icon name="plus" size={16}/>Add Guide</button>}
+      />
+      {limit !== null && items.length >= limit && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
+          <span className="text-amber-700 text-sm">Guide limit reached ({limit}/{limit})</span>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+        </div>
+      )}
+      <div className="card">
+        {loading ? <div className="p-8 text-center text-gray-400">Loading...</div> : items.length === 0 ? (
+          <div className="p-12 text-center">
+            <Icon name="guides" size={40} className="mx-auto mb-3 text-gray-200"/>
+            <p className="text-gray-400">No guides yet</p>
+            <button className="btn-primary mt-4" onClick={openCreate}>Add First Guide</button>
+          </div>
+        ) : (
+          <table>
+            <thead><tr><th>Photo</th><th>Name</th><th>Specialisation</th><th>Certs</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>{items.map(g => (
+              <tr key={g.id}>
+                <td>
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                    {g.id_photo_url||g.photo_url
+                      ? <img src={g.id_photo_url||g.photo_url} alt="" className="w-full h-full object-cover"/>
+                      : <Icon name="guides" size={16} className="text-gray-300"/>}
+                  </div>
+                </td>
+                <td>
+                  <div className="font-semibold text-navy">{g.full_name}</div>
+                  <div className="text-xs text-gray-400">{g.phone}</div>
+                </td>
+                <td className="text-gray-500 text-sm">{g.specialisation||'—'}</td>
+                <td>
+                  <div className="flex gap-1 flex-wrap">
+                    {g.cert_fgasa     && <span className="badge badge-green text-xs">FGASA</span>}
+                    {g.cert_first_aid && <span className="badge badge-blue text-xs">First Aid</span>}
+                    {g.cert_firearms  && <span className="badge badge-red text-xs">Firearms</span>}
+                    {g.cert_pdp       && <span className="badge badge-purple text-xs">PDP</span>}
+                    {!g.cert_fgasa && !g.cert_first_aid && !g.cert_firearms && !g.cert_pdp && <span className="text-gray-300 text-xs">—</span>}
+                  </div>
+                </td>
+                <td><span className={`badge ${g.status==='active'?'badge-green':'badge-gray'}`}>{g.status}</span></td>
+                <td><div className="flex gap-2">
+                  <button className="text-blue-500 hover:text-blue-700" onClick={()=>openEdit(g)} title="Edit"><Icon name="edit" size={14}/></button>
+                  <button className="text-red-400 hover:text-red-600" onClick={()=>handleDelete(g.id)} title="Delete"><Icon name="trash" size={14}/></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
+  );
+}
+
+// ─── DRIVER FORM PAGE ────────────────────
+function DriversPage() {
+  const { company, limits } = useAuth();
+  const [items,  setItems]  = useState([]);
+  const [loading,setLoading]= useState(true);
+  const [view,   setView]   = useState('list');
+  const [editItem,setEditItem]= useState(null);
+  const [form,   setForm]   = useState({});
+  const [saving, setSaving] = useState(false);
+  const [showUpgrade,setShowUpgrade]= useState(false);
+  const limit = limits.drivers;
+
+  async function load() {
+    const { data } = await supabase.from('drivers').select('*').eq('company_id', company.id).order('created_at',{ascending:false});
+    setItems(data||[]); setLoading(false);
+  }
+  useEffect(() => { if (company) load(); }, [company]);
+
+  function openCreate() {
+    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    setEditItem(null);
+    setForm({ status:'available', cert_fgasa:false, cert_first_aid:false, cert_firearms:false });
+    setView('form');
+  }
+  function openEdit(item) {
+    setEditItem(item);
+    const f = {};
+    ['full_name','phone','license_number','license_type','license_expiry','status',
+     'cert_fgasa','cert_fgasa_level','cert_fgasa_expiry',
+     'cert_first_aid','cert_first_aid_level','cert_first_aid_expiry',
+     'cert_firearms','cert_firearms_expiry',
+     'cert_pdp','cert_pdp_expiry',
+     'qualifications','emergency_contact','id_photo_url','photo_url','cert_doc_urls','notes'
+    ].forEach(k => { f[k] = item[k] ?? (k.startsWith('cert_') && typeof item[k] === 'undefined' ? false : ''); });
+    setForm(f); setView('form');
+  }
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true);
+    const payload = { ...form, company_id: company.id,
+      cert_doc_urls: form.cert_doc_urls || [] };
+    const { error } = editItem
+      ? await supabase.from('drivers').update(payload).eq('id', editItem.id)
+      : await supabase.from('drivers').insert(payload);
+    if (error) toast(error.message,'error');
+    else { toast(editItem?'Driver updated':'Driver added'); setView('list'); load(); }
+    setSaving(false);
+  }
+  async function handleDelete(id) {
+    if (!confirm('Delete this driver?')) return;
+    await supabase.from('drivers').delete().eq('id', id);
+    toast('Deleted'); load();
+  }
+  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  if (view === 'form') return (
+    <div>
+      <PageHeader
+        title={editItem ? 'Edit Driver' : 'New Driver'}
+        subtitle="Profile & Documents"
+        action={<button className="btn-secondary" onClick={()=>setView('list')}>← Back</button>}
+      />
+      <form onSubmit={handleSave}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* ── Left: Basic Info ── */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Personal Details</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Full Name *</label><input required value={form.full_name||''} onChange={e=>setF('full_name',e.target.value)} placeholder="Thabo Zulu"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Phone</label><input value={form.phone||''} onChange={e=>setF('phone',e.target.value)} placeholder="+27 82 000 0000"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Status</label>
+                  <select value={form.status||'available'} onChange={e=>setF('status',e.target.value)}>
+                    <option value="available">Available</option>
+                    <option value="on-duty">On Duty</option>
+                    <option value="off-duty">Off Duty</option>
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence No.</label><input value={form.license_number||''} onChange={e=>setF('license_number',e.target.value)} placeholder="PDP 1234567"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence Type</label>
+                  <select value={form.license_type||''} onChange={e=>setF('license_type',e.target.value)}>
+                    <option value="">— Select —</option>
+                    {['B','C','EC','PDP'].map(t=><option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence Expiry</label><input type="date" value={form.license_expiry||''} onChange={e=>setF('license_expiry',e.target.value)}/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Emergency Contact</label><input value={form.emergency_contact||''} onChange={e=>setF('emergency_contact',e.target.value)} placeholder="Name — +27 82 000 0000"/></div>
+                <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Notes</label><textarea rows={2} value={form.notes||''} onChange={e=>setF('notes',e.target.value)}/></div>
+              </div>
+            </div>
+
+            {/* ── Certifications ── */}
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Certifications</h3>
+              <CertRow
+                label="PDP (Professional Driving Permit)"
+                checked={form.cert_pdp} onToggle={v=>setF('cert_pdp',v)}
+                expiry={form.cert_pdp_expiry} onExpiry={v=>setF('cert_pdp_expiry',v)}
+              />
+              <CertRow
+                label="First Aid"
+                checked={form.cert_first_aid} onToggle={v=>setF('cert_first_aid',v)}
+                level={form.cert_first_aid_level} onLevel={v=>setF('cert_first_aid_level',v)} levelPlaceholder="e.g. Level 1" showLevel={true}
+                expiry={form.cert_first_aid_expiry} onExpiry={v=>setF('cert_first_aid_expiry',v)}
+              />
+              <CertRow
+                label="Firearms Competency"
+                checked={form.cert_firearms} onToggle={v=>setF('cert_firearms',v)}
+                expiry={form.cert_firearms_expiry} onExpiry={v=>setF('cert_firearms_expiry',v)}
+              />
+              <CertRow
+                label="FGASA Certification"
+                checked={form.cert_fgasa} onToggle={v=>setF('cert_fgasa',v)}
+                level={form.cert_fgasa_level} onLevel={v=>setF('cert_fgasa_level',v)} levelPlaceholder="e.g. NQF2 Level 1" showLevel={true}
+                expiry={form.cert_fgasa_expiry} onExpiry={v=>setF('cert_fgasa_expiry',v)}
+              />
+            </div>
+          </div>
+
+          {/* ── Right: Documents ── */}
+          <div className="space-y-4">
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">ID Photo</h3>
+              <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden mb-3 mx-auto">
+                {(form.id_photo_url||form.photo_url)
+                  ? <img src={form.id_photo_url||form.photo_url} alt="ID" className="w-full h-full object-cover"/>
+                  : <Icon name="drivers" size={32} className="text-gray-200"/>}
+              </div>
+              {editItem ? (
+                <FileUploadBtn label="Upload ID Photo" accept="image/*" bucket="staff-docs"
+                  path={`drivers/${editItem.id}/id-photo.jpg`}
+                  currentUrl={form.id_photo_url}
+                  onUploaded={url=>setF('id_photo_url',url)}
+                />
+              ) : <p className="text-xs text-gray-400 text-center">Save driver first, then upload photo</p>}
+            </div>
+
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-4">Documents</h3>
+              <p className="text-xs text-gray-400 mb-3">PDF or image, max 10MB</p>
+              {editItem ? (
+                <div className="space-y-3">
+                  {[
+                    {label:'Driving Licence', path:`drivers/${editItem.id}/licence`},
+                    {label:'PDP Certificate', path:`drivers/${editItem.id}/pdp`},
+                    {label:'First Aid Certificate', path:`drivers/${editItem.id}/firstaid`},
+                    {label:'Firearms Certificate', path:`drivers/${editItem.id}/firearms`},
+                    {label:'Other Document', path:`drivers/${editItem.id}/other-${Date.now()}`},
+                  ].map(doc => {
+                    const urls = Array.isArray(form.cert_doc_urls) ? form.cert_doc_urls : [];
+                    const existing = urls.find(u => u.label === doc.label);
+                    return (
+                      <div key={doc.label}>
+                        <p className="text-xs font-semibold text-gray-600 mb-1">{doc.label}</p>
+                        <FileUploadBtn label="Upload" accept="image/*,.pdf" bucket="staff-docs"
+                          path={doc.path} currentUrl={existing?.url} small
+                          onUploaded={url => {
+                            const newUrls = urls.filter(u => u.label !== doc.label);
+                            setF('cert_doc_urls', [...newUrls, { label: doc.label, url }]);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <p className="text-xs text-gray-400">Save driver first to upload documents</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button type="submit" className="btn-primary px-8" disabled={saving}>{saving?'Saving...':'Save Driver'}</button>
+          <button type="button" className="btn-secondary" onClick={()=>setView('list')}>Cancel</button>
+        </div>
+      </form>
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
+  );
+
+  // ── List view ──
+  return (
+    <div>
+      <PageHeader
+        title="Drivers"
+        subtitle={limit ? `${items.length}/${limit} used` : `${items.length} total`}
+        action={<button className="btn-primary flex items-center gap-2" onClick={openCreate}><Icon name="plus" size={16}/>Add Driver</button>}
+      />
+      {limit !== null && items.length >= limit && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
+          <span className="text-amber-700 text-sm">Driver limit reached</span>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+        </div>
+      )}
+      <div className="card">
+        {loading ? <div className="p-8 text-center text-gray-400">Loading...</div> : items.length === 0 ? (
+          <div className="p-12 text-center">
+            <Icon name="drivers" size={40} className="mx-auto mb-3 text-gray-200"/>
+            <p className="text-gray-400">No drivers yet</p>
+            <button className="btn-primary mt-4" onClick={openCreate}>Add First Driver</button>
+          </div>
+        ) : (
+          <table>
+            <thead><tr><th>Photo</th><th>Name</th><th>Licence</th><th>Certs</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>{items.map(d => (
+              <tr key={d.id}>
+                <td>
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                    {d.id_photo_url||d.photo_url
+                      ? <img src={d.id_photo_url||d.photo_url} alt="" className="w-full h-full object-cover"/>
+                      : <Icon name="drivers" size={16} className="text-gray-300"/>}
+                  </div>
+                </td>
+                <td>
+                  <div className="font-semibold text-navy">{d.full_name}</div>
+                  <div className="text-xs text-gray-400">{d.phone}</div>
+                </td>
+                <td className="text-gray-500 text-sm">{d.license_type||''} {d.license_number||'—'}</td>
+                <td>
+                  <div className="flex gap-1 flex-wrap">
+                    {d.cert_pdp       && <span className="badge badge-blue text-xs">PDP</span>}
+                    {d.cert_first_aid && <span className="badge badge-green text-xs">First Aid</span>}
+                    {d.cert_firearms  && <span className="badge badge-red text-xs">Firearms</span>}
+                    {d.cert_fgasa     && <span className="badge badge-purple text-xs">FGASA</span>}
+                    {!d.cert_pdp && !d.cert_first_aid && !d.cert_firearms && !d.cert_fgasa && <span className="text-gray-300 text-xs">—</span>}
+                  </div>
+                </td>
+                <td><span className={`badge ${d.status==='available'?'badge-green':d.status==='on-duty'?'badge-blue':'badge-gray'}`}>{d.status}</span></td>
+                <td><div className="flex gap-2">
+                  <button className="text-blue-500 hover:text-blue-700" onClick={()=>openEdit(d)}><Icon name="edit" size={14}/></button>
+                  <button className="text-red-400 hover:text-red-600" onClick={()=>handleDelete(d.id)}><Icon name="trash" size={14}/></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
+  );
+}
 
 
 function SchedulesPage() {
