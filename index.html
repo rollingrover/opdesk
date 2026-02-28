@@ -7,7 +7,7 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
 <script>
 tailwind.config = {
   theme: {
@@ -7092,12 +7092,19 @@ function AuthProvider({ children }) {
     return await supabase.auth.signInWithPassword({ email, password });
   }
   async function signUp(email, password, companyName, ownerName) {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return { error };
-    const { error: e2 } = await supabase.rpc('create_company_and_profile', {
-      user_id: data.user.id, company_name: companyName, owner_name: ownerName
-    });
-    return { data, error: e2 };
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) return { error };
+      const userId = data?.user?.id || data?.session?.user?.id;
+      if (!userId) return { error: { message: 'Account created — please check your email to confirm, then sign in.' } };
+      const { error: e2 } = await supabase.rpc('create_company_and_profile', {
+        user_id: userId, company_name: companyName, owner_name: ownerName
+      });
+      if (e2) return { error: e2 };
+      return { data };
+    } catch(err) {
+      return { error: { message: err.message || 'Registration failed. Please try again.' } };
+    }
   }
   async function signOut() { await supabase.auth.signOut(); }
 
