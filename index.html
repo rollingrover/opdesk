@@ -1724,10 +1724,14 @@ function GuidesPage() {
     setEditItem(item);
     const f = {};
     ['full_name','phone','email','specialisation','languages','license_number','status',
-     'cert_fgasa','cert_fgasa_level','cert_fgasa_expiry',
+     'cert_fgasa','cert_fgasa_level','cert_fgasa_expiry','cert_issuer',
      'cert_first_aid','cert_first_aid_level','cert_first_aid_expiry',
      'cert_firearms','cert_firearms_expiry',
      'cert_pdp','cert_pdp_expiry',
+     'cert_marine','cert_marine_expiry',
+     'cert_sks','cert_sks_expiry',
+     'cert_ph','cert_ph_expiry',
+     'cert_track_sign','cert_track_sign_expiry',
      'emergency_contact','id_photo_url','photo_url','cert_doc_urls','notes'
     ].forEach(k => { f[k] = item[k] ?? (k.startsWith('cert_') && typeof item[k] === 'undefined' ? false : ''); });
     setForm(f); setView('form');
@@ -1795,10 +1799,25 @@ function GuidesPage() {
                 level={form.cert_fgasa_level} onLevel={v=>setF('cert_fgasa_level',v)} levelPlaceholder="e.g. NQF2 Level 1" showLevel={true}
                 expiry={form.cert_fgasa_expiry} onExpiry={v=>setF('cert_fgasa_expiry',v)}
               />
+              {/* FGASA issuing body */}
+              {form.cert_fgasa && (
+                <div className="pl-6 mb-2">
+                  <label className="text-xs text-gray-500 block mb-0.5">Issuing Body</label>
+                  <select value={form.cert_issuer||''} onChange={e=>setF('cert_issuer',e.target.value)} className="text-sm">
+                    <option value="">— Select —</option>
+                    <option value="FGASA">FGASA</option>
+                    <option value="CATHSSETA">CATHSSETA</option>
+                    <option value="Bushwise">Bushwise</option>
+                    <option value="EcoTraining">EcoTraining</option>
+                    <option value="WildlifeCampus">Wildlife Campus</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              )}
               <CertRow
                 label="First Aid"
                 checked={form.cert_first_aid} onToggle={v=>setF('cert_first_aid',v)}
-                level={form.cert_first_aid_level} onLevel={v=>setF('cert_first_aid_level',v)} levelPlaceholder="e.g. Level 3 / Wilderness" showLevel={true}
+                level={form.cert_first_aid_level} onLevel={v=>setF('cert_first_aid_level',v)} levelPlaceholder="e.g. Level 3 / Wilderness FA" showLevel={true}
                 expiry={form.cert_first_aid_expiry} onExpiry={v=>setF('cert_first_aid_expiry',v)}
               />
               <CertRow
@@ -1810,6 +1829,29 @@ function GuidesPage() {
                 label="PDP (Professional Driving Permit)"
                 checked={form.cert_pdp} onToggle={v=>setF('cert_pdp',v)}
                 expiry={form.cert_pdp_expiry} onExpiry={v=>setF('cert_pdp_expiry',v)}
+              />
+              <div className="border-t border-gray-100 pt-2 mt-1 mb-1">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Additional Qualifications</p>
+              </div>
+              <CertRow
+                label="Marine Guide"
+                checked={form.cert_marine} onToggle={v=>setF('cert_marine',v)}
+                expiry={form.cert_marine_expiry} onExpiry={v=>setF('cert_marine_expiry',v)}
+              />
+              <CertRow
+                label="SKS Dangerous Animals"
+                checked={form.cert_sks} onToggle={v=>setF('cert_sks',v)}
+                expiry={form.cert_sks_expiry} onExpiry={v=>setF('cert_sks_expiry',v)}
+              />
+              <CertRow
+                label="Professional Hunter (PH)"
+                checked={form.cert_ph} onToggle={v=>setF('cert_ph',v)}
+                expiry={form.cert_ph_expiry} onExpiry={v=>setF('cert_ph_expiry',v)}
+              />
+              <CertRow
+                label="Track & Sign"
+                checked={form.cert_track_sign} onToggle={v=>setF('cert_track_sign',v)}
+                expiry={form.cert_track_sign_expiry} onExpiry={v=>setF('cert_track_sign_expiry',v)}
               />
             </div>
           </div>
@@ -1928,7 +1970,11 @@ function GuidesPage() {
                     {g.cert_first_aid && <span className="badge badge-blue text-xs">First Aid</span>}
                     {g.cert_firearms  && <span className="badge badge-red text-xs">Firearms</span>}
                     {g.cert_pdp       && <span className="badge badge-purple text-xs">PDP</span>}
-                    {!g.cert_fgasa && !g.cert_first_aid && !g.cert_firearms && !g.cert_pdp && <span className="text-gray-300 text-xs">—</span>}
+                    {g.cert_marine    && <span className="badge badge-blue text-xs">Marine</span>}
+                    {g.cert_sks       && <span className="badge badge-red text-xs">SKS</span>}
+                    {g.cert_ph        && <span className="badge badge-yellow text-xs">PH</span>}
+                    {g.cert_track_sign && <span className="badge badge-gray text-xs">Track&Sign</span>}
+                    {!g.cert_fgasa && !g.cert_first_aid && !g.cert_firearms && !g.cert_pdp && !g.cert_marine && !g.cert_sks && !g.cert_ph && !g.cert_track_sign && <span className="text-gray-300 text-xs">—</span>}
                   </div>
                 </td>
                 <td><span className={`badge ${g.status==='active'?'badge-green':'badge-gray'}`}>{g.status}</span></td>
@@ -1973,7 +2019,7 @@ function DriversPage() {
   function openEdit(item) {
     setEditItem(item);
     const f = {};
-    ['full_name','phone','license_number','license_type','license_expiry','status',
+    ['full_name','phone','license_number','license_code','license_expiry','status',
      'cert_fgasa','cert_fgasa_level','cert_fgasa_expiry',
      'cert_first_aid','cert_first_aid_level','cert_first_aid_expiry',
      'cert_firearms','cert_firearms_expiry',
@@ -2025,10 +2071,14 @@ function DriversPage() {
                   </select>
                 </div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence No.</label><input value={form.license_number||''} onChange={e=>setF('license_number',e.target.value)} placeholder="PDP 1234567"/></div>
-                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence Type</label>
-                  <select value={form.license_type||''} onChange={e=>setF('license_type',e.target.value)}>
+                <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence Code</label>
+                  <select value={form.license_code||''} onChange={e=>setF('license_code',e.target.value)}>
                     <option value="">— Select —</option>
-                    {['B','C','EC','PDP'].map(t=><option key={t} value={t}>{t}</option>)}
+                    <option value="Code 8">Code 8 (Light motor vehicle ≤3,500kg)</option>
+                    <option value="Code 10">Code 10 (Heavy motor vehicle, no articulation)</option>
+                    <option value="Code 14">Code 14 (Extra-heavy / articulated truck)</option>
+                    <option value="Code C1">Code C1 (Light heavy vehicle 3,500–16,000kg)</option>
+                    <option value="Code EB">Code EB (Light motor vehicle, automatic/manual)</option>
                   </select>
                 </div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence Expiry</label><input type="date" value={form.license_expiry||''} onChange={e=>setF('license_expiry',e.target.value)}/></div>
@@ -2148,7 +2198,7 @@ function DriversPage() {
           </div>
         ) : (
           <table>
-            <thead><tr><th>Photo</th><th>Name</th><th>Licence</th><th>Certs</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Photo</th><th>Name</th><th>Code / Licence</th><th>Certs</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>{items.map(d => (
               <tr key={d.id}>
                 <td>
@@ -2162,7 +2212,10 @@ function DriversPage() {
                   <div className="font-semibold text-navy">{d.full_name}</div>
                   <div className="text-xs text-gray-400">{d.phone}</div>
                 </td>
-                <td className="text-gray-500 text-sm">{d.license_type||''} {d.license_number||'—'}</td>
+                <td className="text-gray-500 text-sm">
+                  <div>{d.license_code && <span className="font-semibold text-navy text-xs">{d.license_code}</span>}{d.license_code && d.license_number ? ' · ' : ''}{d.license_number||(!d.license_code?'—':'')}</div>
+                  {d.cert_pdp && <span className="text-xs text-purple-500">PDP</span>}
+                </td>
                 <td>
                   <div className="flex gap-1 flex-wrap">
                     {d.cert_pdp       && <span className="badge badge-blue text-xs">PDP</span>}
