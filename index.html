@@ -175,11 +175,11 @@ function AuthProvider({ children }) {
   async function loadData(user) {
     setLoading(true);
     try {
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      if (p) {
-        setProfile(p);
-        const { data: c } = await supabase.from('companies').select('*').eq('id', p.company_id).single();
-        if (c) setCompany(c);
+      // Single SECURITY DEFINER RPC — bypasses RLS on both profiles and companies
+      const { data: d, error: dErr } = await supabase.rpc('get_my_data');
+      if (d && d.profile) {
+        setProfile(d.profile);
+        if (d.company) setCompany(d.company);
       }
     } catch(e) { console.error('loadData error', e); }
     setLoading(false);
@@ -1413,9 +1413,9 @@ function SuperAdminLogin({ onAuth }) {
     e.preventDefault(); setErr(''); setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setErr(error.message); setLoading(false); return; }
-    // Verify superadmin role
-    const { data: p } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
-    if (!p || p.role !== 'superadmin') {
+    // Verify superadmin role via SECURITY DEFINER RPC (bypasses RLS)
+    const { data: isSA, error: saErr } = await supabase.rpc('check_is_superadmin');
+    if (saErr || !isSA) {
       await supabase.auth.signOut();
       setErr('Not authorised — superadmin role required');
       setLoading(false); return;
