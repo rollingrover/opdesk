@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+// Redirect ?admin to the app
+if (window.location.search.includes('admin')) {
+  window.location.replace('./bookings.html' + window.location.search);
+}
+</script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>OpDesk — Operator's Command Centre</title>
