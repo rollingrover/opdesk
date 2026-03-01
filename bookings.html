@@ -160,6 +160,273 @@ const COUNTRIES = [
   'Italy','Other',
 ];
 
+// ─── REGION CERTIFICATION CONFIG ────────────────────────────
+const COUNTRY_TO_REGION = {
+  'South Africa':'south_africa','Botswana':'botswana','Zimbabwe':'zimbabwe',
+  'Zambia':'zambia','Namibia':'namibia','Mozambique':'mozambique',
+  'Kenya':'kenya','Tanzania':'tanzania','Uganda':'uganda','Rwanda':'rwanda',
+};
+function getCompanyRegion(country) {
+  return COUNTRY_TO_REGION[country] || 'south_africa';
+}
+const REGION_CERTS = {
+  south_africa: {
+    label: 'Southern Africa (South Africa)',
+    guide: [
+      { key:'cert_fgasa',      label:'FGASA Certification',           col:true,  hasLevel:true,  issuers:['FGASA','CATHSSETA','Bushwise','EcoTraining','WildlifeCampus'] },
+      { key:'cert_first_aid',  label:'First Aid',                     col:true,  hasLevel:true,  levelHint:'e.g. Level 3 / Wilderness FA' },
+      { key:'cert_firearms',   label:'Firearms Competency',           col:true,  hasLevel:false },
+      { key:'cert_pdp',        label:'PDP (Professional Driving Permit)', col:true, hasLevel:false },
+      { key:'cert_marine',     label:'Marine Guide',                  col:true,  hasLevel:false },
+      { key:'cert_sks',        label:'SKS Dangerous Animals',         col:true,  hasLevel:false },
+      { key:'cert_ph',         label:'Professional Hunter (PH)',      col:true,  hasLevel:false },
+      { key:'cert_track_sign', label:'Track & Sign',                  col:true,  hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Code EB','Code EB — Light vehicle (auto/manual)'],
+      ['Code 8', 'Code 8 — Light motor vehicle ≤3,500kg'],
+      ['Code 10','Code 10 — Heavy vehicle, no articulation'],
+      ['Code C1','Code C1 — 3,500–16,000kg'],
+      ['Code 14','Code 14 — Extra-heavy / articulated'],
+    ],
+    driver: [
+      { key:'cert_pdp',       label:'PDP (Professional Driving Permit)', col:true, hasLevel:false },
+      { key:'cert_first_aid', label:'First Aid',                         col:true, hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',  label:'Firearms Competency',               col:true, hasLevel:false },
+      { key:'cert_fgasa',     label:'FGASA Certification',               col:true, hasLevel:true, levelHint:'e.g. NQF2 Level 1', issuers:['FGASA','CATHSSETA','Bushwise','EcoTraining','WildlifeCampus'] },
+    ],
+  },
+  botswana: {
+    label: 'Botswana',
+    guide: [
+      { key:'BOTA Guide Licence',      label:'BOTA Guide Licence',       col:false, hasLevel:true,  issuers:['Botswana Tourism Organisation (BOTA)'] },
+      { key:'cert_first_aid',          label:'First Aid',                 col:true,  hasLevel:true,  levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',           label:'Firearms Competency',       col:true,  hasLevel:false },
+      { key:'cert_pdp',                label:'PDP (Driving Permit)',       col:true,  hasLevel:false },
+      { key:'cert_ph',                 label:'Professional Hunter (PH)',   col:true,  hasLevel:false },
+      { key:'Mokoro Guide',            label:'Mokoro Guide',               col:false, hasLevel:false },
+      { key:'Horseback Safari Guide',  label:'Horseback Safari Guide',     col:false, hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Class A','Class A — Motorcycle'],
+      ['Class B','Class B — Light vehicle ≤3,500kg'],
+      ['Class C','Class C — Heavy vehicle'],
+      ['Class C1','Class C1 — Medium goods vehicle'],
+      ['Class D','Class D — Bus/minibus'],
+      ['Class E','Class E — Articulated vehicle'],
+    ],
+    driver: [
+      { key:'cert_pdp',     label:'PDP (Driving Permit)',       col:true,  hasLevel:false },
+      { key:'cert_first_aid',label:'First Aid',                  col:true,  hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'BOTA Guide Licence', label:'BOTA Guide Licence',   col:false, hasLevel:false },
+    ],
+  },
+  zimbabwe: {
+    label: 'Zimbabwe',
+    guide: [
+      { key:'ZPWMA Professional Guide Licence', label:'ZPWMA Professional Guide Licence', col:false, hasLevel:true, issuers:['Zimbabwe Parks & Wildlife Management Authority (ZPWMA)'] },
+      { key:'Dangerous Game Guide',  label:'Dangerous Game Guide',     col:false, hasLevel:false },
+      { key:'cert_first_aid',        label:'First Aid',                 col:true,  hasLevel:true, levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',         label:'Firearms Competency',       col:true,  hasLevel:false },
+      { key:'cert_ph',               label:'Professional Hunter (PH)',  col:true,  hasLevel:false },
+      { key:'Canoe Guide',           label:'Canoe Guide',               col:false, hasLevel:false },
+      { key:'Horse Trail Guide',     label:'Horse Trail Guide',         col:false, hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Class 1','Class 1 — Motorcycle'],
+      ['Class 2','Class 2 — Light motor vehicle'],
+      ['Class 3','Class 3 — Medium vehicle'],
+      ['Class 4','Class 4 — Heavy vehicle'],
+      ['Class 5','Class 5 — Articulated truck'],
+    ],
+    driver: [
+      { key:'PDP (Defensive Driving)', label:'PDP (Defensive Driving)',  col:false, hasLevel:false },
+      { key:'cert_first_aid',          label:'First Aid',                 col:true,  hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',           label:'Firearms Competency',       col:true,  hasLevel:false },
+    ],
+  },
+  zambia: {
+    label: 'Zambia',
+    guide: [
+      { key:'ZAWA Guide Licence',  label:'ZAWA Guide Licence',       col:false, hasLevel:true, issuers:['Zambia Wildlife Authority (ZAWA)'] },
+      { key:'ZNTB Tourist Guide',  label:'ZNTB Tourist Guide',       col:false, hasLevel:true, issuers:['Zambia Tourism Agency (ZTA)'] },
+      { key:'cert_first_aid',      label:'First Aid',                 col:true,  hasLevel:true, levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',       label:'Firearms Competency',       col:true,  hasLevel:false },
+      { key:'cert_ph',             label:'Professional Hunter (PH)',  col:true,  hasLevel:false },
+      { key:'Walking Safari Guide',label:'Walking Safari Guide',      col:false, hasLevel:false },
+      { key:'Canoe/River Guide',   label:'Canoe/River Guide',         col:false, hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Class A','Class A — Motorcycle'],
+      ['Class B','Class B — Light vehicle ≤3,500kg'],
+      ['Class C','Class C — Rigid heavy vehicle'],
+      ['Class D','Class D — Bus/passenger vehicle'],
+      ['Class E','Class E — Articulated vehicle'],
+    ],
+    driver: [
+      { key:'PSV Licence',     label:'PSV Licence (Public Service Vehicle)', col:false, hasLevel:false },
+      { key:'cert_first_aid',  label:'First Aid',                             col:true,  hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',   label:'Firearms Competency',                   col:true,  hasLevel:false },
+      { key:'ZAWA Guide Licence', label:'ZAWA Guide Licence',                col:false, hasLevel:false },
+    ],
+  },
+  namibia: {
+    label: 'Namibia',
+    guide: [
+      { key:'NTA Guide Badge',     label:'NTA Guide Badge',           col:false, hasLevel:true, issuers:['Namibia Tourism Board (NTB)'] },
+      { key:'FENATA Field Guide',  label:'FENATA Field Guide',        col:false, hasLevel:true, issuers:['FENATA'] },
+      { key:'cert_first_aid',      label:'First Aid',                 col:true,  hasLevel:true, levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',       label:'Firearms Competency',       col:true,  hasLevel:false },
+      { key:'cert_marine',         label:'Marine Guide',              col:true,  hasLevel:false },
+      { key:'Desert Guide',        label:'Desert Guide Certification',col:false, hasLevel:false },
+      { key:'cert_ph',             label:'Professional Hunter (PH)',  col:true,  hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Code B',  'Code B — Light motor vehicle'],
+      ['Code C',  'Code C — Heavy motor vehicle'],
+      ['Code C1', 'Code C1 — Medium goods vehicle'],
+      ['Code EC', 'Code EC — Articulated heavy vehicle'],
+      ['Code EC1','Code EC1 — Articulated medium vehicle'],
+    ],
+    driver: [
+      { key:'cert_pdp',       label:'PDP (Professional Driving Permit)', col:true,  hasLevel:false },
+      { key:'cert_first_aid', label:'First Aid',                          col:true,  hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',  label:'Firearms Competency',                col:true,  hasLevel:false },
+      { key:'NTA Guide Badge',label:'NTA Guide Badge',                    col:false, hasLevel:false },
+    ],
+  },
+  mozambique: {
+    label: 'Mozambique',
+    guide: [
+      { key:'MITUR Tour Guide Licence', label:'MITUR Tour Guide Licence', col:false, hasLevel:false, issuers:['Ministry of Tourism (MITUR)'] },
+      { key:'cert_first_aid',           label:'First Aid',                 col:true,  hasLevel:true, levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',            label:'Firearms Competency',       col:true,  hasLevel:false },
+      { key:'cert_marine',              label:'Marine/Dive Guide',         col:true,  hasLevel:false },
+      { key:'Gorongosa Guide Cert',     label:'Gorongosa Guide Cert',      col:false, hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Categoria A','Categoria A — Motorcycle'],
+      ['Categoria B','Categoria B — Light vehicle ≤3,500kg'],
+      ['Categoria C','Categoria C — Heavy vehicle'],
+      ['Categoria D','Categoria D — Passenger vehicle/bus'],
+      ['Categoria E','Categoria E — Articulated/trailer'],
+    ],
+    driver: [
+      { key:'Licença Motorista Profissional', label:'Licença Motorista Profissional', col:false, hasLevel:false },
+      { key:'cert_first_aid', label:'First Aid',            col:true, hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',  label:'Firearms Competency',  col:true, hasLevel:false },
+    ],
+  },
+  kenya: {
+    label: 'Kenya',
+    guide: [
+      { key:'KWS Guide Licence',        label:'KWS Guide Licence',              col:false, hasLevel:true, issuers:['Kenya Wildlife Service (KWS)'] },
+      { key:'KPSGA Certification',      label:'KPSGA Certification',            col:false, hasLevel:true, issuers:['Kenya Professional Safari Guides Association (KPSGA)'] },
+      { key:'KTB Guide Badge',          label:'Kenya Tourism Board Guide Badge', col:false, hasLevel:false },
+      { key:'cert_first_aid',           label:'First Aid',                       col:true,  hasLevel:true, levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',            label:'Firearms Competency',             col:true,  hasLevel:false },
+      { key:'cert_marine',              label:'Marine Guide',                    col:true,  hasLevel:false },
+      { key:'Mountain Guide (KAA)',     label:'Mountain Guide (KAA)',            col:false, hasLevel:false },
+      { key:'Camel Safari Guide',       label:'Camel Safari Guide',              col:false, hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Class A','Class A — Motorcycle'],
+      ['Class B','Class B — Light vehicle (cars/vans)'],
+      ['Class C','Class C — Rigid heavy vehicle'],
+      ['Class D','Class D — Bus/PSV'],
+      ['Class E','Class E — Trailer/articulated'],
+      ['Class F','Class F — Agricultural vehicle'],
+      ['Class G','Class G — Special vehicle'],
+    ],
+    driver: [
+      { key:'PSV Licence',       label:'PSV Licence (Public Service Vehicle)', col:false, hasLevel:false },
+      { key:'cert_first_aid',    label:'First Aid',                             col:true,  hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',     label:'Firearms Competency',                   col:true,  hasLevel:false },
+      { key:'KWS Guide Licence', label:'KWS Guide Licence',                    col:false, hasLevel:false },
+    ],
+  },
+  tanzania: {
+    label: 'Tanzania',
+    guide: [
+      { key:'TALA Guide Licence',     label:'TALA Guide Licence',                 col:false, hasLevel:true, issuers:['Tanzania Guides Association (TALA)'] },
+      { key:'TANAPA Approved Guide',  label:'TANAPA Approved Guide',              col:false, hasLevel:false, issuers:['Tanzania National Parks Authority (TANAPA)'] },
+      { key:'TTB Guide',              label:'Tanzania Tourist Board Guide',       col:false, hasLevel:false },
+      { key:'cert_first_aid',         label:'First Aid',                           col:true,  hasLevel:true, levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',          label:'Firearms Competency',                 col:true,  hasLevel:false },
+      { key:'cert_marine',            label:'Marine Guide',                        col:true,  hasLevel:false },
+      { key:'Mountain Guide (Kilimanjaro)', label:'Mountain Guide (Kilimanjaro / KINAPA)', col:false, hasLevel:true },
+      { key:'Zanzibar Tourism Guide', label:'Zanzibar Tourism Guide (ZTC)',        col:false, hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Class A','Class A — Motorcycle'],
+      ['Class B','Class B — Light private vehicle'],
+      ['Class C','Class C — Heavy goods vehicle'],
+      ['Class D','Class D — Bus/minibus'],
+      ['Class E','Class E — Articulated/special'],
+    ],
+    driver: [
+      { key:'PSV Permit',           label:'PSV Permit',              col:false, hasLevel:false },
+      { key:'cert_first_aid',       label:'First Aid',               col:true,  hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',        label:'Firearms Competency',     col:true,  hasLevel:false },
+      { key:'TALA Guide Licence',   label:'TALA Guide Licence',      col:false, hasLevel:false },
+    ],
+  },
+  uganda: {
+    label: 'Uganda',
+    guide: [
+      { key:'UWA Guide Permit',          label:'UWA Guide Permit',                  col:false, hasLevel:true, issuers:['Uganda Wildlife Authority (UWA)'] },
+      { key:'UTB Guide Badge',           label:'Uganda Tourism Board Guide Badge',  col:false, hasLevel:false },
+      { key:'Gorilla Trekking Guide',    label:'Gorilla Trekking Guide (UWA)',      col:false, hasLevel:false },
+      { key:'Chimpanzee Guide',          label:'Chimpanzee Guide (UWA)',             col:false, hasLevel:false },
+      { key:'cert_first_aid',            label:'First Aid',                          col:true,  hasLevel:true, levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',             label:'Firearms Competency',                col:true,  hasLevel:false },
+      { key:'White Water Rafting Guide', label:'White Water Rafting Guide',          col:false, hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Class A','Class A — Motorcycle'],
+      ['Class B','Class B — Light vehicle ≤3,500kg'],
+      ['Class CM','Class CM — Medium goods'],
+      ['Class CH','Class CH — Heavy goods'],
+      ['Class DL','Class DL — Light bus/minibus'],
+      ['Class DH','Class DH — Heavy bus'],
+      ['Class EL','Class EL — Light trailer'],
+      ['Class EH','Class EH — Heavy trailer/articulated'],
+    ],
+    driver: [
+      { key:'PSV Permit',         label:'PSV Permit',          col:false, hasLevel:false },
+      { key:'cert_first_aid',     label:'First Aid',           col:true,  hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',      label:'Firearms Competency', col:true,  hasLevel:false },
+      { key:'UWA Guide Permit',   label:'UWA Guide Permit',    col:false, hasLevel:false },
+    ],
+  },
+  rwanda: {
+    label: 'Rwanda',
+    guide: [
+      { key:'RDB Guide Licence',         label:'RDB Guide Licence',               col:false, hasLevel:true, issuers:['Rwanda Development Board (RDB)'] },
+      { key:'Gorilla Trekking Guide',    label:'Gorilla Trekking Guide (RDB)',    col:false, hasLevel:false },
+      { key:'Golden Monkey Guide',       label:'Golden Monkey Guide (RDB)',       col:false, hasLevel:false },
+      { key:'cert_first_aid',            label:'First Aid',                        col:true,  hasLevel:true, levelHint:'e.g. Level 3' },
+      { key:'cert_firearms',             label:'Firearms Competency',              col:true,  hasLevel:false },
+      { key:'Eco-Tourism Guide',         label:'Eco-Tourism Guide (ORTPN)',        col:false, hasLevel:false },
+    ],
+    driverLicenceCodes: [
+      ['Category A','Category A — Motorcycle'],
+      ['Category B','Category B — Light vehicle'],
+      ['Category C','Category C — Heavy vehicle'],
+      ['Category D','Category D — Bus/passenger'],
+      ['Category BE','Category BE — Light + trailer'],
+      ['Category CE','Category CE — Heavy + trailer'],
+    ],
+    driver: [
+      { key:'TPI',             label:'TPI (Transport Public Individuel)', col:false, hasLevel:false },
+      { key:'cert_first_aid',  label:'First Aid',                          col:true,  hasLevel:true, levelHint:'e.g. Level 1' },
+      { key:'cert_firearms',   label:'Firearms Competency',                col:true,  hasLevel:false },
+      { key:'RDB Guide Licence', label:'RDB Guide Licence',                col:false, hasLevel:false },
+    ],
+  },
+};
+// ─────────────────────────────────────────────────────────────
+
 function getCurrencySymbol(code) {
   return (CURRENCIES.find(c => c.code === (code||'ZAR')) || CURRENCIES[0]).symbol;
 }
@@ -340,7 +607,7 @@ function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, company, profile, loading, tier, limits, baseLimits, addons, features, role, signIn, signUp, signOut, setCompany, reloadAddons, reload: () => session && loadData(session.user), currencySymbol: getCurrencySymbol(company?.currency), appLanguage: company?.language || 'en' }}>
+    <AuthContext.Provider value={{ session, company, profile, loading, tier, limits, baseLimits, addons, features, role, signIn, signUp, signOut, setCompany, reloadAddons, reload: () => session && loadData(session.user), currencySymbol: getCurrencySymbol(company?.currency), appLanguage: company?.language || 'en', companyRegion: company?.region || getCompanyRegion(company?.country) }}>
       {children}
     </AuthContext.Provider>
   );
@@ -1243,7 +1510,7 @@ function CrudPage({ title, icon, table, fields, resourceKey }) {
 
 // ─── BOOKINGS ────────────────────────────
 function BookingsPage() {
-  const { company, limits, features } = useAuth();
+  const { company, limits, features, companyRegion } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [guides,   setGuides]   = useState([]);
@@ -1448,7 +1715,7 @@ function BookingsPage() {
 
 // ─── INVOICE ─────────────────────────────
 function InvoiceModal({ booking, onClose }) {
-  const { company, features, currencySymbol: sym } = useAuth();
+  const { company, features, currencySymbol: sym, companyRegion } = useAuth();
   const invoiceRef = React.useRef(null);
   const invoiceNum = `INV-${booking.booking_ref}-${new Date().getFullYear()}`;
   const showLogo   = features.logo && company?.logo_url;   // basic/standard/premium + logo uploaded
@@ -2379,69 +2646,80 @@ function GuidesPage() {
               </div>
             </div>
 
-            {/* ── Certifications ── */}
+            {/* ── Certifications — region-aware ── */}
             <div className="card p-5">
               <h3 className="font-bold text-navy mb-4">Certifications & Qualifications</h3>
-              <CertRow
-                label="FGASA Certification"
-                checked={form.cert_fgasa} onToggle={v=>setF('cert_fgasa',v)}
-                level={form.cert_fgasa_level} onLevel={v=>setF('cert_fgasa_level',v)} levelPlaceholder="e.g. NQF2 Level 1" showLevel={true}
-                expiry={form.cert_fgasa_expiry} onExpiry={v=>setF('cert_fgasa_expiry',v)}
-              />
-              {/* FGASA issuing body */}
-              {form.cert_fgasa && (
-                <div className="pl-6 mb-2">
-                  <label className="text-xs text-gray-500 block mb-0.5">Issuing Body</label>
-                  <select value={form.cert_issuer||''} onChange={e=>setF('cert_issuer',e.target.value)} className="text-sm">
-                    <option value="">— Select —</option>
-                    <option value="FGASA">FGASA</option>
-                    <option value="CATHSSETA">CATHSSETA</option>
-                    <option value="Bushwise">Bushwise</option>
-                    <option value="EcoTraining">EcoTraining</option>
-                    <option value="WildlifeCampus">Wildlife Campus</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              )}
-              <CertRow
-                label="First Aid"
-                checked={form.cert_first_aid} onToggle={v=>setF('cert_first_aid',v)}
-                level={form.cert_first_aid_level} onLevel={v=>setF('cert_first_aid_level',v)} levelPlaceholder="e.g. Level 3 / Wilderness FA" showLevel={true}
-                expiry={form.cert_first_aid_expiry} onExpiry={v=>setF('cert_first_aid_expiry',v)}
-              />
-              <CertRow
-                label="Firearms Competency"
-                checked={form.cert_firearms} onToggle={v=>setF('cert_firearms',v)}
-                expiry={form.cert_firearms_expiry} onExpiry={v=>setF('cert_firearms_expiry',v)}
-              />
-              <CertRow
-                label="PDP (Professional Driving Permit)"
-                checked={form.cert_pdp} onToggle={v=>setF('cert_pdp',v)}
-                expiry={form.cert_pdp_expiry} onExpiry={v=>setF('cert_pdp_expiry',v)}
-              />
-              <div className="border-t border-gray-100 pt-2 mt-1 mb-1">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Additional Qualifications</p>
-              </div>
-              <CertRow
-                label="Marine Guide"
-                checked={form.cert_marine} onToggle={v=>setF('cert_marine',v)}
-                expiry={form.cert_marine_expiry} onExpiry={v=>setF('cert_marine_expiry',v)}
-              />
-              <CertRow
-                label="SKS Dangerous Animals"
-                checked={form.cert_sks} onToggle={v=>setF('cert_sks',v)}
-                expiry={form.cert_sks_expiry} onExpiry={v=>setF('cert_sks_expiry',v)}
-              />
-              <CertRow
-                label="Professional Hunter (PH)"
-                checked={form.cert_ph} onToggle={v=>setF('cert_ph',v)}
-                expiry={form.cert_ph_expiry} onExpiry={v=>setF('cert_ph_expiry',v)}
-              />
-              <CertRow
-                label="Track & Sign"
-                checked={form.cert_track_sign} onToggle={v=>setF('cert_track_sign',v)}
-                expiry={form.cert_track_sign_expiry} onExpiry={v=>setF('cert_track_sign_expiry',v)}
-              />
+              {(() => {
+                const rgn = REGION_CERTS[companyRegion] || REGION_CERTS['south_africa'];
+                const quals = (() => { try { return JSON.parse(form.qualifications||'{}'); } catch(e){ return {}; } })();
+                const setQual = (key, patch) => {
+                  const q = (() => { try { return JSON.parse(form.qualifications||'{}'); } catch(e){ return {}; } })();
+                  const updated = { ...q, [key]: { ...(q[key]||{}), ...patch } };
+                  setF('qualifications', JSON.stringify(updated));
+                };
+                const nodes = [];
+                rgn.guide.forEach((cert, idx) => {
+                  if (idx === 4 && rgn.guide.length > 4) {
+                    nodes.push(
+                      <div key="divider" className="border-t border-gray-100 pt-2 mt-1 mb-1">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Additional Qualifications</p>
+                      </div>
+                    );
+                  }
+                  if (cert.col) {
+                    const levelKey = cert.key + '_level';
+                    const expiryKey = cert.key + '_expiry';
+                    nodes.push(
+                      <div key={cert.key}>
+                        <CertRow
+                          label={cert.label}
+                          checked={form[cert.key]} onToggle={v=>setF(cert.key,v)}
+                          level={cert.hasLevel ? form[levelKey] : undefined}
+                          onLevel={cert.hasLevel ? v=>setF(levelKey,v) : undefined}
+                          levelPlaceholder={cert.levelHint||''}
+                          showLevel={!!cert.hasLevel}
+                          expiry={form[expiryKey]} onExpiry={v=>setF(expiryKey,v)}
+                        />
+                        {cert.issuers && form[cert.key] && (
+                          <div className="pl-6 mb-2">
+                            <label className="text-xs text-gray-500 block mb-0.5">Issuing Body</label>
+                            <select value={form.cert_issuer||''} onChange={e=>setF('cert_issuer',e.target.value)} className="text-sm">
+                              <option value="">— Select —</option>
+                              {cert.issuers.map(is=><option key={is} value={is}>{is}</option>)}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    const q = quals[cert.key] || {};
+                    const active = !!q.active;
+                    nodes.push(
+                      <div key={cert.key}>
+                        <CertRow
+                          label={cert.label}
+                          checked={active} onToggle={v=>setQual(cert.key,{active:v})}
+                          level={cert.hasLevel ? q.level : undefined}
+                          onLevel={cert.hasLevel ? v=>setQual(cert.key,{active,level:v}) : undefined}
+                          levelPlaceholder={cert.levelHint||''}
+                          showLevel={!!cert.hasLevel}
+                          expiry={q.expiry} onExpiry={v=>setQual(cert.key,{active,expiry:v})}
+                        />
+                        {cert.issuers && active && (
+                          <div className="pl-6 mb-2">
+                            <label className="text-xs text-gray-500 block mb-0.5">Issuing Body</label>
+                            <select value={q.issuer||''} onChange={e=>setQual(cert.key,{active,issuer:e.target.value})} className="text-sm">
+                              <option value="">— Select —</option>
+                              {cert.issuers.map(is=><option key={is} value={is}>{is}</option>)}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                });
+                return nodes;
+              })()}
             </div>
           </div>
 
@@ -2663,11 +2941,9 @@ function DriversPage() {
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence Code</label>
                   <select value={form.license_code||''} onChange={e=>setF('license_code',e.target.value)}>
                     <option value="">— Select —</option>
-                    <option value="Code 8">Code 8 (Light motor vehicle ≤3,500kg)</option>
-                    <option value="Code 10">Code 10 (Heavy motor vehicle, no articulation)</option>
-                    <option value="Code 14">Code 14 (Extra-heavy / articulated truck)</option>
-                    <option value="Code C1">Code C1 (Light heavy vehicle 3,500–16,000kg)</option>
-                    <option value="Code EB">Code EB (Light motor vehicle, automatic/manual)</option>
+                    {(REGION_CERTS[companyRegion]||REGION_CERTS['south_africa']).driverLicenceCodes.map(([val,lbl])=>(
+                      <option key={val} value={val}>{lbl}</option>
+                    ))}
                   </select>
                 </div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Licence Expiry</label><input type="date" value={form.license_expiry||''} onChange={e=>setF('license_expiry',e.target.value)}/></div>
@@ -2676,31 +2952,57 @@ function DriversPage() {
               </div>
             </div>
 
-            {/* ── Certifications ── */}
+            {/* ── Certifications — region-aware ── */}
             <div className="card p-5">
               <h3 className="font-bold text-navy mb-4">Certifications</h3>
-              <CertRow
-                label="PDP (Professional Driving Permit)"
-                checked={form.cert_pdp} onToggle={v=>setF('cert_pdp',v)}
-                expiry={form.cert_pdp_expiry} onExpiry={v=>setF('cert_pdp_expiry',v)}
-              />
-              <CertRow
-                label="First Aid"
-                checked={form.cert_first_aid} onToggle={v=>setF('cert_first_aid',v)}
-                level={form.cert_first_aid_level} onLevel={v=>setF('cert_first_aid_level',v)} levelPlaceholder="e.g. Level 1" showLevel={true}
-                expiry={form.cert_first_aid_expiry} onExpiry={v=>setF('cert_first_aid_expiry',v)}
-              />
-              <CertRow
-                label="Firearms Competency"
-                checked={form.cert_firearms} onToggle={v=>setF('cert_firearms',v)}
-                expiry={form.cert_firearms_expiry} onExpiry={v=>setF('cert_firearms_expiry',v)}
-              />
-              <CertRow
-                label="FGASA Certification"
-                checked={form.cert_fgasa} onToggle={v=>setF('cert_fgasa',v)}
-                level={form.cert_fgasa_level} onLevel={v=>setF('cert_fgasa_level',v)} levelPlaceholder="e.g. NQF2 Level 1" showLevel={true}
-                expiry={form.cert_fgasa_expiry} onExpiry={v=>setF('cert_fgasa_expiry',v)}
-              />
+              {(() => {
+                const rgn = REGION_CERTS[companyRegion] || REGION_CERTS['south_africa'];
+                const quals = (() => { try { return JSON.parse(form.qualifications||'{}'); } catch(e){ return {}; } })();
+                const setQual = (key, patch) => {
+                  const q = (() => { try { return JSON.parse(form.qualifications||'{}'); } catch(e){ return {}; } })();
+                  const updated = { ...q, [key]: { ...(q[key]||{}), ...patch } };
+                  setF('qualifications', JSON.stringify(updated));
+                };
+                return rgn.driver.map(cert => {
+                  if (cert.col) {
+                    const levelKey = cert.key + '_level';
+                    const expiryKey = cert.key + '_expiry';
+                    return (
+                      <div key={cert.key}>
+                        <CertRow
+                          label={cert.label}
+                          checked={form[cert.key]} onToggle={v=>setF(cert.key,v)}
+                          level={cert.hasLevel ? form[levelKey] : undefined}
+                          onLevel={cert.hasLevel ? v=>setF(levelKey,v) : undefined}
+                          levelPlaceholder={cert.levelHint||''}
+                          showLevel={!!cert.hasLevel}
+                          expiry={form[expiryKey]} onExpiry={v=>setF(expiryKey,v)}
+                        />
+                        {cert.issuers && form[cert.key] && (
+                          <div className="pl-6 mb-2">
+                            <label className="text-xs text-gray-500 block mb-0.5">Issuing Body</label>
+                            <select value={form.cert_issuer||''} onChange={e=>setF('cert_issuer',e.target.value)} className="text-sm">
+                              <option value="">— Select —</option>
+                              {cert.issuers.map(is=><option key={is} value={is}>{is}</option>)}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    const q = quals[cert.key] || {};
+                    const active = !!q.active;
+                    return (
+                      <CertRow
+                        key={cert.key}
+                        label={cert.label}
+                        checked={active} onToggle={v=>setQual(cert.key,{active:v})}
+                        expiry={q.expiry} onExpiry={v=>setQual(cert.key,{active,expiry:v})}
+                      />
+                    );
+                  }
+                });
+              })()}
             </div>
           </div>
 
@@ -3406,7 +3708,7 @@ function SettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
-    if (company) setForm({ name:company.name||'', email:company.email||'', phone:company.phone||'', address:company.address||'', vat_number:company.vat_number||'', bank_name:company.bank_name||'', bank_account:company.bank_account||'', bank_branch:company.bank_branch||'', country:company.country||'South Africa', currency:company.currency||'ZAR', language:company.language||'en' });
+    if (company) setForm({ name:company.name||'', email:company.email||'', phone:company.phone||'', address:company.address||'', vat_number:company.vat_number||'', bank_name:company.bank_name||'', bank_account:company.bank_account||'', bank_branch:company.bank_branch||'', country:company.country||'South Africa', currency:company.currency||'ZAR', language:company.language||'en', region:company.region||getCompanyRegion(company.country||'South Africa') });
   }, [company]);
 
   function handleLogoSelect(e) {
@@ -3478,7 +3780,7 @@ function SettingsPage() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="text-sm font-semibold text-gray-600 block mb-1">Country</label>
-                <select value={form.country||'South Africa'} onChange={e=>setForm({...form,country:e.target.value})}>
+                <select value={form.country||'South Africa'} onChange={e=>setForm({...form,country:e.target.value,region:getCompanyRegion(e.target.value)})}>
                   {COUNTRIES.map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -3495,6 +3797,9 @@ function SettingsPage() {
                 </select>
               </div>
             </div>
+            <p className="text-xs text-gray-400 mt-2">
+              <span className="font-semibold text-gray-500">Region:</span> {(REGION_CERTS[form.region||getCompanyRegion(form.country||'South Africa')]||REGION_CERTS['south_africa']).label} — guide &amp; driver qualifications are shown based on your country of operation.
+            </p>
           </div>
           <button type="submit" className="btn-primary flex items-center gap-2" disabled={saving}><Icon name="check" size={16}/>{saving?'Saving...':'Save Settings'}</button>
         </form>
