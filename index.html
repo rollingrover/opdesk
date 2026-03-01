@@ -49,6 +49,7 @@ if (window.location.search.includes('admin')) {
     .hero::before {
       content: '';
       position: absolute; inset: 0;
+      pointer-events: none;
       background: radial-gradient(ellipse 80% 60% at 50% 110%, rgba(212,168,83,0.15) 0%, transparent 60%);
     }
     .hero-badge {
@@ -237,7 +238,7 @@ if (window.location.search.includes('admin')) {
     </div>
     <div class="hero-proof-item">
       <div class="hero-proof-num" id="price-from">From R449</div>
-      <div class="hero-proof-label">Per year (Basic)</div>
+      <div class="hero-proof-label" id="label-from">per month (Basic)</div>
     </div>
     <div class="hero-proof-item">
       <div class="hero-proof-num">15+</div>
@@ -589,11 +590,14 @@ function setBillingCycle(cycle) {
   });
   // Update hero From price
   const fromEl = document.getElementById('price-from');
+  const labelEl = document.getElementById('label-from');
   if (fromEl && p['basic']) {
     if (cycle === 'annual') {
       fromEl.textContent = 'From R' + p['basic'].annual.toLocaleString('en-ZA') + '/yr';
+      if (labelEl) labelEl.textContent = 'per year (Basic)';
     } else {
       fromEl.textContent = 'From R' + p['basic'].monthly.toLocaleString('en-ZA') + '/mo';
+      if (labelEl) labelEl.textContent = 'per month (Basic)';
     }
   }
 }
