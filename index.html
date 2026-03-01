@@ -236,7 +236,7 @@ if (window.location.search.includes('admin')) {
       <div class="hero-proof-label">Modules included</div>
     </div>
     <div class="hero-proof-item">
-      <div class="hero-proof-num" id="price-from">From R749</div>
+      <div class="hero-proof-num" id="price-from">From R449</div>
       <div class="hero-proof-label">Per year (Basic)</div>
     </div>
     <div class="hero-proof-item">
@@ -434,8 +434,8 @@ if (window.location.search.includes('admin')) {
     <!-- Basic -->
     <div class="pricing-card">
       <div class="tier-name">Basic</div>
-      <div class="tier-price" id="price-basic">R749</div>
-      <div class="tier-price-sub" id="sub-basic">per year · ~R62/month</div>
+      <div class="tier-price" id="price-basic">R449</div>
+      <div class="tier-price-sub" id="sub-basic">per month</div>
       <ul class="tier-features">
         <li>Unlimited bookings</li>
         <li>5 vehicles &amp; guides</li>
@@ -449,8 +449,8 @@ if (window.location.search.includes('admin')) {
     <div class="pricing-card featured">
       <div class="tier-badge">Most Popular</div>
       <div class="tier-name">Standard</div>
-      <div class="tier-price" id="price-standard" style="color:#D4A853">R1,499</div>
-      <div class="tier-price-sub" id="sub-standard">per year · ~R125/month</div>
+      <div class="tier-price" id="price-standard" style="color:#D4A853">R999</div>
+      <div class="tier-price-sub" id="sub-standard">per month</div>
       <ul class="tier-features">
         <li>10 vehicles &amp; guides</li>
         <li>5 drivers, 10 shuttles</li>
@@ -502,37 +502,45 @@ if (window.location.search.includes('admin')) {
     const SUPABASE_KEY = 'sb_publishable_i3qA3belPYxUsAD2AnlhIw_7_gAulLT';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const { data: tiers, error } = await db.from('tier_pricing').select('tier_key,price_zar,period');
+    const { data: tiers, error } = await db
+      .from('tier_pricing')
+      .select('tier,label,monthly_price,annual_price');
     if (error || !tiers) return;
 
-    tiers.forEach(({ tier_key, price_zar, period }) => {
-      const key = tier_key.toLowerCase();
-      if (key === 'free') return; // Free stays R0
+    let lowestPaidMonthly = null;
 
-      const priceEl  = document.getElementById(`price-${key}`);
-      const subEl    = document.getElementById(`sub-${key}`);
+    tiers.forEach(({ tier, monthly_price, annual_price }) => {
+      const key = tier.toLowerCase();
+      if (key === 'free') return;
+
+      const priceEl = document.getElementById('price-' + key);
+      const subEl   = document.getElementById('sub-' + key);
       if (!priceEl) return;
 
-      const formatted = 'R' + Number(price_zar).toLocaleString('en-ZA');
-      priceEl.textContent = formatted;
+      const annualN  = parseFloat(annual_price)  || 0;
+      const monthlyN = parseFloat(monthly_price) || 0;
 
-      if (subEl) {
-        if (period === 'year' || period === 'annual') {
-          const monthly = Math.round(price_zar / 12);
-          subEl.textContent = `per year · ~R${monthly}/month`;
-        } else if (period === 'month') {
-          subEl.textContent = 'per month';
+      // Decide display: if annual_price is set (>0), show annual; else show monthly
+      if (annualN > 0) {
+        const approxMonthly = Math.round(annualN / 12);
+        priceEl.textContent = 'R' + annualN.toLocaleString('en-ZA');
+        if (subEl) subEl.textContent = 'per year · ~R' + approxMonthly + '/month';
+        if (lowestPaidMonthly === null || annualN / 12 < lowestPaidMonthly) {
+          lowestPaidMonthly = annualN / 12;
+          const fromEl = document.getElementById('price-from');
+          if (fromEl) fromEl.textContent = 'From R' + annualN.toLocaleString('en-ZA');
         }
-      }
-
-      // Update "From RX" hero stat using the cheapest paid tier
-      if (key === 'basic') {
-        const fromEl = document.getElementById('price-from');
-        if (fromEl) fromEl.textContent = `From ${formatted}`;
+      } else if (monthlyN > 0) {
+        priceEl.textContent = 'R' + monthlyN.toLocaleString('en-ZA');
+        if (subEl) subEl.textContent = 'per month';
+        if (lowestPaidMonthly === null || monthlyN < lowestPaidMonthly) {
+          lowestPaidMonthly = monthlyN;
+          const fromEl = document.getElementById('price-from');
+          if (fromEl) fromEl.textContent = 'From R' + monthlyN.toLocaleString('en-ZA');
+        }
       }
     });
   } catch (e) {
-    // Fail silently — hardcoded fallback prices remain visible
     console.warn('OpDesk: could not load live pricing', e);
   }
 })();
