@@ -88,6 +88,52 @@ const TIER_FEATURES = {
   standard: { watermark: false, logo: true, csvExport: true, autoBackup: false, firearmRegister: false, whiteLabel: false },
   premium:  { watermark: false, logo: true, csvExport: true, autoBackup: true, firearmRegister: true, whiteLabel: true }
 };
+const CURRENCIES = [
+  { code:'ZAR', symbol:'R',    name:'South African Rand' },
+  { code:'USD', symbol:'$',    name:'US Dollar' },
+  { code:'EUR', symbol:'€',    name:'Euro' },
+  { code:'GBP', symbol:'£',    name:'British Pound' },
+  { code:'AUD', symbol:'A$',   name:'Australian Dollar' },
+  { code:'NZD', symbol:'NZ$',  name:'New Zealand Dollar' },
+  { code:'CAD', symbol:'CA$',  name:'Canadian Dollar' },
+  { code:'KES', symbol:'KSh',  name:'Kenyan Shilling' },
+  { code:'TZS', symbol:'TSh',  name:'Tanzanian Shilling' },
+  { code:'BWP', symbol:'P',    name:'Botswana Pula' },
+  { code:'NAD', symbol:'N$',   name:'Namibian Dollar' },
+  { code:'ZMW', symbol:'ZK',   name:'Zambian Kwacha' },
+  { code:'MWK', symbol:'MK',   name:'Malawian Kwacha' },
+  { code:'MZN', symbol:'MT',   name:'Mozambican Metical' },
+  { code:'MUR', symbol:'₨',    name:'Mauritian Rupee' },
+  { code:'ETB', symbol:'Br',   name:'Ethiopian Birr' },
+];
+
+const LANGUAGES = [
+  { code:'en',    name:'English' },
+  { code:'af',    name:'Afrikaans' },
+  { code:'zu',    name:'Zulu (isiZulu)' },
+  { code:'xh',    name:'Xhosa (isiXhosa)' },
+  { code:'st',    name:'Sotho (Sesotho)' },
+  { code:'sw',    name:'Swahili (Kiswahili)' },
+  { code:'fr',    name:'French (Français)' },
+  { code:'pt',    name:'Portuguese (Português)' },
+  { code:'de',    name:'German (Deutsch)' },
+  { code:'es',    name:'Spanish (Español)' },
+  { code:'nl',    name:'Dutch (Nederlands)' },
+  { code:'it',    name:'Italian (Italiano)' },
+];
+
+const COUNTRIES = [
+  'South Africa','Kenya','Tanzania','Botswana','Namibia','Zambia','Zimbabwe',
+  'Mozambique','Malawi','Mauritius','Seychelles','Rwanda','Uganda','Ethiopia',
+  'Ghana','Nigeria','Egypt','Morocco','Australia','New Zealand','United Kingdom',
+  'United States','Canada','Germany','France','Netherlands','Portugal','Spain',
+  'Italy','Other',
+];
+
+function getCurrencySymbol(code) {
+  return (CURRENCIES.find(c => c.code === (code||'ZAR')) || CURRENCIES[0]).symbol;
+}
+
 
 // ─── ICONS ───────────────────────────────
 const Icon = ({ name, size=18, className='' }) => {
@@ -204,14 +250,15 @@ function AuthProvider({ children }) {
   async function signIn(email, password) {
     return await supabase.auth.signInWithPassword({ email, password });
   }
-  async function signUp(email, password, companyName, ownerName) {
+  async function signUp(email, password, companyName, ownerName, country, currency, language) {
     try {
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return { error };
       const userId = data?.user?.id || data?.session?.user?.id;
       if (!userId) return { error: { message: 'Account created — please check your email to confirm, then sign in.' } };
       const { error: e2 } = await supabase.rpc('create_company_and_profile', {
-        user_id: userId, company_name: companyName, owner_name: ownerName
+        user_id: userId, company_name: companyName, owner_name: ownerName,
+        p_country: country||'South Africa', p_currency: currency||'ZAR', p_language: language||'en'
       });
       if (e2) return { error: e2 };
       return { data };
@@ -260,7 +307,7 @@ function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, company, profile, loading, tier, limits, baseLimits, addons, features, role, signIn, signUp, signOut, setCompany, reloadAddons, reload: () => session && loadData(session.user) }}>
+    <AuthContext.Provider value={{ session, company, profile, loading, tier, limits, baseLimits, addons, features, role, signIn, signUp, signOut, setCompany, reloadAddons, reload: () => session && loadData(session.user), currencySymbol: getCurrencySymbol(company?.currency), appLanguage: company?.language || 'en' }}>
       {children}
     </AuthContext.Provider>
   );
@@ -316,6 +363,9 @@ function AuthScreen() {
   const [showPw, setShowPw] = useState(false);
   const [company, setCompanyName] = useState('');
   const [name, setName] = useState('');
+  const [regCountry, setRegCountry] = useState('South Africa');
+  const [regCurrency, setRegCurrency] = useState('ZAR');
+  const [regLanguage, setRegLanguage] = useState('en');
   const [totpSecret, setTotpSecret] = useState('');
   const [totpQR, setTotpQR] = useState('');
   const [totpCode, setTotpCode] = useState('');
@@ -340,7 +390,7 @@ function AuthScreen() {
   async function handleRegister(e) {
     e.preventDefault(); setError(''); setLoading(true);
     if (password.length < 8) { setError('Password must be at least 8 characters'); setLoading(false); return; }
-    const { error } = await signUp(email, password, company, name);
+    const { error } = await signUp(email, password, company, name, regCountry, regCurrency, regLanguage);
     if (error) { setError(error.message); setLoading(false); return; }
     const secret = genSecret();
     setTotpSecret(secret);
@@ -398,6 +448,29 @@ function AuthScreen() {
               <div>
                 <label className="text-sm font-semibold text-gray-600 block mb-1">Password</label>
                 <div className="relative"><input type={showPw?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} required minLength={8} placeholder="Min 8 characters"/><button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" onClick={()=>setShowPw(!showPw)}><Icon name={showPw?'eyeOff':'eye'} size={16}/></button></div>
+              </div>
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Region & Language</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-1">Country</label>
+                    <select value={regCountry} onChange={e=>setRegCountry(e.target.value)} className="text-sm">
+                      {COUNTRIES.map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-1">Currency</label>
+                    <select value={regCurrency} onChange={e=>setRegCurrency(e.target.value)} className="text-sm">
+                      {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-1">Language</label>
+                    <select value={regLanguage} onChange={e=>setRegLanguage(e.target.value)} className="text-sm">
+                      {LANGUAGES.map(l=><option key={l.code} value={l.code}>{l.name}</option>)}
+                    </select>
+                  </div>
+                </div>
               </div>
               <button className="btn-primary w-full py-2.5" disabled={loading}>{loading?'Creating...':'Create Account'}</button>
               <div className="text-center"><button type="button" className="text-gold text-sm hover:underline" onClick={()=>setMode('login')}>Already have an account?</button></div>
@@ -1312,7 +1385,7 @@ function BookingsPage() {
 
 // ─── INVOICE ─────────────────────────────
 function InvoiceModal({ booking, onClose }) {
-  const { company, features } = useAuth();
+  const { company, features, currencySymbol: sym } = useAuth();
   const invoiceRef = React.useRef(null);
   const invoiceNum = `INV-${booking.booking_ref}-${new Date().getFullYear()}`;
   const showLogo   = features.logo && company?.logo_url;   // basic/standard/premium + logo uploaded
@@ -1385,13 +1458,13 @@ function InvoiceModal({ booking, onClose }) {
               <td style="font-weight:600;text-transform:capitalize">${(booking.activity_type||'Activity')} — ${company?.name||''}</td>
               <td>${booking.start_date ? new Date(booking.start_date).toLocaleDateString('en-ZA') : '—'}</td>
               <td style="text-align:right">${booking.pax||1}</td>
-              <td style="text-align:right;font-weight:700">R${(booking.total_amount||0).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+              <td style="text-align:right;font-weight:700">${sym}${(booking.total_amount||0).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr class="total-row">
               <td colspan="3" style="text-align:right">TOTAL DUE</td>
-              <td style="text-align:right" class="total-amount">R${(booking.total_amount||0).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+              <td style="text-align:right" class="total-amount">${sym}${(booking.total_amount||0).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
             </tr>
           </tfoot>
         </table>
@@ -1478,7 +1551,7 @@ function InvoiceModal({ booking, onClose }) {
                   <td className="capitalize font-medium">{booking.activity_type||'Activity'} — {company?.name}</td>
                   <td>{booking.start_date ? new Date(booking.start_date).toLocaleDateString('en-ZA') : '—'}</td>
                   <td className="text-right">{booking.pax||1}</td>
-                  <td className="text-right font-bold">R{(booking.total_amount||0).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+                  <td className="text-right font-bold">{sym}{(booking.total_amount||0).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
                 </tr>
               </tbody>
               <tfoot>
@@ -3215,7 +3288,7 @@ function SettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
-    if (company) setForm({ name:company.name||'', email:company.email||'', phone:company.phone||'', address:company.address||'', vat_number:company.vat_number||'', bank_name:company.bank_name||'', bank_account:company.bank_account||'', bank_branch:company.bank_branch||'' });
+    if (company) setForm({ name:company.name||'', email:company.email||'', phone:company.phone||'', address:company.address||'', vat_number:company.vat_number||'', bank_name:company.bank_name||'', bank_account:company.bank_account||'', bank_branch:company.bank_branch||'', country:company.country||'South Africa', currency:company.currency||'ZAR', language:company.language||'en' });
   }, [company]);
 
   function handleLogoSelect(e) {
@@ -3280,6 +3353,29 @@ function SettingsPage() {
               <div><label className="text-sm font-semibold text-gray-600 block mb-1">Bank</label><input value={form.bank_name||''} onChange={e=>setForm({...form,bank_name:e.target.value})} placeholder="FNB"/></div>
               <div><label className="text-sm font-semibold text-gray-600 block mb-1">Account No.</label><input value={form.bank_account||''} onChange={e=>setForm({...form,bank_account:e.target.value})} placeholder="62000000000"/></div>
               <div><label className="text-sm font-semibold text-gray-600 block mb-1">Branch Code</label><input value={form.bank_branch||''} onChange={e=>setForm({...form,bank_branch:e.target.value})} placeholder="250655"/></div>
+            </div>
+          </div>
+          <div className="border-t pt-4">
+            <h3 className="font-semibold text-navy mb-3">Region & Language</h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-600 block mb-1">Country</label>
+                <select value={form.country||'South Africa'} onChange={e=>setForm({...form,country:e.target.value})}>
+                  {COUNTRIES.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-600 block mb-1">Currency</label>
+                <select value={form.currency||'ZAR'} onChange={e=>setForm({...form,currency:e.target.value})}>
+                  {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-600 block mb-1">App Language</label>
+                <select value={form.language||'en'} onChange={e=>setForm({...form,language:e.target.value})}>
+                  {LANGUAGES.map(l=><option key={l.code} value={l.code}>{l.name}</option>)}
+                </select>
+              </div>
             </div>
           </div>
           <button type="submit" className="btn-primary flex items-center gap-2" disabled={saving}><Icon name="check" size={16}/>{saving?'Saving...':'Save Settings'}</button>
