@@ -566,6 +566,8 @@ function AuthScreen() {
 function Sidebar({ page, setPage, collapsed, setCollapsed }) {
   const { company, profile, tier, features, role, signOut, addons } = useAuth();
   const [addonResource, setAddonResource] = useState(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [resourceKey] = useState(null);
   const sym = { free:'◦', basic:'◈', standard:'◉', premium:'✦' };
   const tierBadge = { free:'badge-gray', basic:'badge-blue', standard:'badge-purple', premium:'badge-navy' };
 
