@@ -221,13 +221,46 @@ function AuthProvider({ children }) {
   }
   async function signOut() { await supabase.auth.signOut(); }
 
+  const [addons, setAddons] = useState([]);
+
+  // Load company add-ons whenever company changes
+  useEffect(() => {
+    if (!company?.id) { setAddons([]); return; }
+    supabase.from('company_addons').select('*').eq('company_id', company.id).eq('active', true)
+      .then(({ data }) => setAddons(data || []));
+  }, [company?.id]);
+
   const tier = company?.subscription_tier || 'free';
-  const limits = TIER_LIMITS[tier];
-  const features = TIER_FEATURES[tier];
+  const baseLimits = TIER_LIMITS[tier];
+
+  // Compute effective limits: base tier limits + purchased addon quantities
+  const limits = Object.fromEntries(
+    Object.entries(baseLimits).map(([k, v]) => {
+      if (v === null) return [k, null]; // already unlimited
+      const extra = addons
+        .filter(a => a.addon_key === k && a.active)
+        .reduce((sum, a) => sum + (a.quantity || 1), 0);
+      return [k, v + extra];
+    })
+  );
+
+  const features = {
+    ...TIER_FEATURES[tier],
+    firearmRegister: TIER_FEATURES[tier].firearmRegister ||
+      addons.some(a => a.addon_key === 'firearm_register' && a.active),
+    whiteLabel: TIER_FEATURES[tier].whiteLabel ||
+      addons.some(a => a.addon_key === 'white_label' && a.active),
+  };
   const role = profile?.role || 'owner';
 
+  function reloadAddons() {
+    if (!company?.id) return;
+    supabase.from('company_addons').select('*').eq('company_id', company.id).eq('active', true)
+      .then(({ data }) => setAddons(data || []));
+  }
+
   return (
-    <AuthContext.Provider value={{ session, company, profile, loading, tier, limits, features, role, signIn, signUp, signOut, setCompany, reload: () => session && loadData(session.user) }}>
+    <AuthContext.Provider value={{ session, company, profile, loading, tier, limits, baseLimits, addons, features, role, signIn, signUp, signOut, setCompany, reloadAddons, reload: () => session && loadData(session.user) }}>
       {children}
     </AuthContext.Provider>
   );
@@ -404,7 +437,7 @@ function AuthScreen() {
 // ─── SIDEBAR ─────────────────────────────
 function Sidebar({ page, setPage, collapsed, setCollapsed }) {
   const { company, profile, tier, features, role, signOut } = useAuth();
-  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [addonResource, setAddonResource] = useState(null);
   const sym = { free:'◦', basic:'◈', standard:'◉', premium:'✦' };
   const tierBadge = { free:'badge-gray', basic:'badge-blue', standard:'badge-purple', premium:'badge-navy' };
 
@@ -471,7 +504,8 @@ function Sidebar({ page, setPage, collapsed, setCollapsed }) {
         </button>
       </div>
     </div>
-    {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    {showUpgrade && resourceKey && <AddOnPurchaseModal resource={resourceKey} onClose={()=>setShowUpgrade(false)}/> }
+      {showUpgrade && !resourceKey && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
     </>
   );
 }
@@ -688,6 +722,176 @@ function DashboardPage() {
     </div>
   );
 }
+// ─── ADD-ON PURCHASE MODAL ───────────────
+// Lets users buy N extra slots of any resource, directly from any limit-hit gate
+
+const ADDON_SLOT_LABELS = {
+  vehicles: 'Vehicle', guides: 'Guide', drivers: 'Driver',
+  shuttles: 'Shuttle', safaris: 'Safari', tours: 'Tour',
+  charters: 'Charter', trails: 'Trail', seats: 'User Seat',
+  schedules: 'Schedule', firearm_register: 'Firearm Register', white_label: 'White-label',
+};
+const ADDON_DEFAULT_PRICES = {
+  vehicles: 99, guides: 99, drivers: 99, shuttles: 99,
+  safaris: 99, tours: 99, charters: 99, trails: 149,
+  seats: 79, schedules: 199, firearm_register: 299, white_label: 499,
+};
+
+function AddOnPurchaseModal({ resource, onClose }) {
+  const { company, tier, baseLimits, addons, reloadAddons } = useAuth();
+  const [qty, setQty] = useState(1);
+  const [pricing, setPricing] = useState([]);
+  const [purchasing, setPurchasing] = useState(false);
+
+  useEffect(() => {
+    supabase.from('addon_pricing').select('*').then(({ data }) => setPricing(data || []));
+  }, []);
+
+  const label = ADDON_SLOT_LABELS[resource] || resource;
+  const priceRow = pricing.find(p => p.addon_key === resource);
+  const unitPrice = priceRow?.monthly_price || ADDON_DEFAULT_PRICES[resource] || 99;
+  const totalPrice = unitPrice * qty;
+
+  // Current base + already purchased
+  const baseLimit = baseLimits[resource];
+  const currentExtra = addons.filter(a => a.addon_key === resource && a.active)
+    .reduce((s, a) => s + (a.quantity || 1), 0);
+  const newTotal = (baseLimit ?? 0) + currentExtra + qty;
+
+  function handleBuy() {
+    setPurchasing(true);
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = PAYFAST_CONFIG.sandbox
+      ? 'https://sandbox.payfast.co.za/eng/process'
+      : 'https://www.payfast.co.za/eng/process';
+    const fields = {
+      merchant_id:    PAYFAST_CONFIG.merchant_id,
+      merchant_key:   PAYFAST_CONFIG.merchant_key,
+      return_url:     PAYFAST_CONFIG.return_url,
+      cancel_url:     PAYFAST_CONFIG.cancel_url,
+      notify_url:     PAYFAST_CONFIG.notify_url,
+      m_payment_id:   `${company?.id}_addon_${resource}_${qty}_${Date.now()}`,
+      amount:         totalPrice.toFixed(2),
+      item_name:      `OpDesk: ${qty}x Extra ${label} Slot`,
+      item_description: `Add ${qty} extra ${label.toLowerCase()} slot(s) to your ${tier} plan`,
+      subscription_type: '1',
+      billing_date:   new Date().toISOString().slice(0,10),
+      recurring_amount: totalPrice.toFixed(2),
+      frequency:      '3',  // monthly
+      cycles:         '0',  // indefinite
+    };
+    Object.entries(fields).forEach(([k, v]) => {
+      const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v;
+      form.appendChild(i);
+    });
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  // For superadmin / sandbox testing: instantly grant the addon
+  async function handleGrantInstant() {
+    setPurchasing(true);
+    await supabase.from('company_addons').insert({
+      company_id:    company.id,
+      addon_key:     resource,
+      addon_type:    resource,
+      quantity:      qty,
+      price_per_unit: unitPrice,
+      billing_cycle: 'monthly',
+      active:        true,
+      note:          'Self-purchased via in-app store',
+    });
+    toast(`${qty}x ${label} slot${qty > 1 ? 's' : ''} added`);
+    reloadAddons();
+    setPurchasing(false);
+    onClose();
+  }
+
+  const maxQty = resource === 'trails' || resource === 'seats' ? 10
+    : resource === 'schedules' ? 5 : 10;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal max-w-md w-full" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-xl font-bold text-navy">Buy Extra {label} Slots</h2>
+          <button onClick={onClose}><Icon name="x" size={20} className="text-gray-400"/></button>
+        </div>
+
+        {/* Current state */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-5">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div className="text-2xl font-black text-navy">{baseLimit ?? '∞'}</div>
+              <div className="text-xs text-gray-400">Base ({tier})</div>
+            </div>
+            <div>
+              <div className="text-2xl font-black text-gold">{currentExtra}</div>
+              <div className="text-xs text-gray-400">Current extras</div>
+            </div>
+            <div>
+              <div className="text-2xl font-black text-green-600">{baseLimit === null ? '∞' : newTotal}</div>
+              <div className="text-xs text-gray-400">After purchase</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Qty selector */}
+        <div className="mb-5">
+          <label className="text-sm font-semibold text-gray-600 block mb-2">
+            How many extra {label.toLowerCase()} slots?
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              className="w-10 h-10 rounded-full border-2 border-gray-200 text-xl font-bold text-gray-600 hover:border-navy"
+              onClick={() => setQty(q => Math.max(1, q - 1))}>−</button>
+            <input
+              type="number" min="1" max={maxQty} value={qty}
+              onChange={e => setQty(Math.min(maxQty, Math.max(1, parseInt(e.target.value) || 1)))}
+              className="w-20 text-center text-xl font-bold border-2 border-gray-200 rounded-xl"
+            />
+            <button
+              className="w-10 h-10 rounded-full border-2 border-gray-200 text-xl font-bold text-gray-600 hover:border-navy"
+              onClick={() => setQty(q => Math.min(maxQty, q + 1))}>+</button>
+            <span className="text-sm text-gray-400">max {maxQty}</span>
+          </div>
+        </div>
+
+        {/* Pricing */}
+        <div className="bg-navy text-white rounded-xl p-4 mb-5">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="text-sm opacity-70">{qty}x {label} slot{qty > 1 ? 's' : ''} × R{unitPrice}/mo</div>
+              <div className="text-2xl font-black mt-0.5">R{totalPrice.toLocaleString()}<span className="text-sm font-normal opacity-70">/month</span></div>
+            </div>
+            <div className="text-xs opacity-50 text-right">
+              Added to your<br/>monthly billing
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {PAYFAST_CONFIG.sandbox ? (
+            <button className="btn-primary w-full py-3 text-base" onClick={handleGrantInstant} disabled={purchasing}>
+              {purchasing ? 'Adding…' : `Add ${qty} Slot${qty > 1 ? 's' : ''} (Sandbox — instant)`}
+            </button>
+          ) : (
+            <button className="btn-primary w-full py-3 text-base" onClick={handleBuy} disabled={purchasing}>
+              {purchasing ? 'Redirecting…' : `Pay R${totalPrice} via PayFast`}
+            </button>
+          )}
+          <button className="btn-secondary w-full" onClick={onClose}>Cancel</button>
+        </div>
+        <p className="text-xs text-gray-400 text-center mt-3">
+          Billed monthly · Cancel anytime from Billing settings
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── GENERIC CRUD ────────────────────────
 function CrudPage({ title, icon, table, fields, resourceKey }) {
   const { company, limits } = useAuth();
@@ -1296,7 +1500,7 @@ function TrailsPage() {
   useEffect(() => { if (company) load(); }, [company]);
 
   function openCreate() {
-    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    if (limit !== null && items.length >= limit) { setAddonResource('trails'); return; }
     setEditItem(null);
     setForm({ status:'active', requires_firearm:false, guide_id:'' });
     setShowModal(true);
@@ -1341,7 +1545,7 @@ function TrailsPage() {
       {limit !== null && items.length >= limit && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
           <span className="text-amber-700 text-sm flex items-center gap-2"><Icon name="alert" size={16}/>Trail limit reached ({limit}/{limit})</span>
-          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setAddonResource('trails')}>Buy Slot</button>
         </div>
       )}
       <div className="card">
@@ -1419,7 +1623,7 @@ function TrailsPage() {
           </div>
         </div>
       )}
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {addonResource && <AddOnPurchaseModal resource={addonResource} onClose={()=>setAddonResource(null)}/>}
     </div>
   );
 }
@@ -1433,7 +1637,7 @@ function VehiclesPage() {
   const [editItem,setEditItem]= useState(null);
   const [form,   setForm]   = useState({});
   const [saving, setSaving] = useState(false);
-  const [showUpgrade,setShowUpgrade]= useState(false);
+  const [addonResource, setAddonResource] = useState(null); // null = closed
   const limit = limits.vehicles;
 
   async function load() {
@@ -1443,7 +1647,7 @@ function VehiclesPage() {
   useEffect(() => { if (company) load(); }, [company]);
 
   function openCreate() {
-    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    if (limit !== null && items.length >= limit) { setAddonResource('vehicles'); return; }
     setEditItem(null); setForm({ status:'available' }); setView('form');
   }
   function openEdit(item) {
@@ -1579,7 +1783,7 @@ function VehiclesPage() {
           <button type="button" className="btn-secondary" onClick={()=>setView('list')}>Cancel</button>
         </div>
       </form>
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {addonResource && <AddOnPurchaseModal resource={addonResource} onClose={()=>setAddonResource(null)}/>}
     </div>
   );
 
@@ -1594,7 +1798,7 @@ function VehiclesPage() {
       {limit !== null && items.length >= limit && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
           <span className="text-amber-700 text-sm">Vehicle limit reached ({limit}/{limit})</span>
-          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setAddonResource('vehicles')}>Buy Slot</button>
         </div>
       )}
       <div className="card">
@@ -1634,7 +1838,7 @@ function VehiclesPage() {
           </table>
         )}
       </div>
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {addonResource && <AddOnPurchaseModal resource={addonResource} onClose={()=>setAddonResource(null)}/>}
     </div>
   );
 }
@@ -1705,7 +1909,7 @@ function GuidesPage() {
   const [editItem,setEditItem]= useState(null);
   const [form,   setForm]   = useState({});
   const [saving, setSaving] = useState(false);
-  const [showUpgrade,setShowUpgrade]= useState(false);
+  const [addonResource, setAddonResource] = useState(null); // null = closed
   const limit = limits.guides;
 
   async function load() {
@@ -1715,7 +1919,7 @@ function GuidesPage() {
   useEffect(() => { if (company) load(); }, [company]);
 
   function openCreate() {
-    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    if (limit !== null && items.length >= limit) { setAddonResource('guides'); return; }
     setEditItem(null);
     setForm({ status:'active', cert_fgasa:false, cert_first_aid:false, cert_firearms:false, cert_pdp:false });
     setView('form');
@@ -1922,7 +2126,7 @@ function GuidesPage() {
           <button type="button" className="btn-secondary" onClick={()=>setView('list')}>Cancel</button>
         </div>
       </form>
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {addonResource && <AddOnPurchaseModal resource={addonResource} onClose={()=>setAddonResource(null)}/>}
     </div>
   );
 
@@ -1937,7 +2141,7 @@ function GuidesPage() {
       {limit !== null && items.length >= limit && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
           <span className="text-amber-700 text-sm">Guide limit reached ({limit}/{limit})</span>
-          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setAddonResource('guides')}>Buy Slot</button>
         </div>
       )}
       <div className="card">
@@ -1987,7 +2191,7 @@ function GuidesPage() {
           </table>
         )}
       </div>
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {addonResource && <AddOnPurchaseModal resource={addonResource} onClose={()=>setAddonResource(null)}/>}
     </div>
   );
 }
@@ -2001,7 +2205,7 @@ function DriversPage() {
   const [editItem,setEditItem]= useState(null);
   const [form,   setForm]   = useState({});
   const [saving, setSaving] = useState(false);
-  const [showUpgrade,setShowUpgrade]= useState(false);
+  const [addonResource, setAddonResource] = useState(null); // null = closed
   const limit = limits.drivers;
 
   async function load() {
@@ -2011,7 +2215,7 @@ function DriversPage() {
   useEffect(() => { if (company) load(); }, [company]);
 
   function openCreate() {
-    if (limit !== null && items.length >= limit) { setShowUpgrade(true); return; }
+    if (limit !== null && items.length >= limit) { setAddonResource('drivers'); return; }
     setEditItem(null);
     setForm({ status:'available', cert_fgasa:false, cert_first_aid:false, cert_firearms:false });
     setView('form');
@@ -2171,7 +2375,7 @@ function DriversPage() {
           <button type="button" className="btn-secondary" onClick={()=>setView('list')}>Cancel</button>
         </div>
       </form>
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {addonResource && <AddOnPurchaseModal resource={addonResource} onClose={()=>setAddonResource(null)}/>}
     </div>
   );
 
@@ -2186,7 +2390,7 @@ function DriversPage() {
       {limit !== null && items.length >= limit && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex justify-between items-center">
           <span className="text-amber-700 text-sm">Driver limit reached</span>
-          <button className="btn-primary text-xs py-1.5" onClick={()=>setShowUpgrade(true)}>Upgrade</button>
+          <button className="btn-primary text-xs py-1.5" onClick={()=>setAddonResource('drivers')}>Buy Slot</button>
         </div>
       )}
       <div className="card">
@@ -2235,7 +2439,7 @@ function DriversPage() {
           </table>
         )}
       </div>
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {addonResource && <AddOnPurchaseModal resource={addonResource} onClose={()=>setAddonResource(null)}/>}
     </div>
   );
 }
@@ -2422,7 +2626,7 @@ function SchedulesPage() {
           </div>
         </div>
       )}
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {showUpgrade && <AddOnPurchaseModal resource='schedules' onClose={()=>setShowUpgrade(false)}/>}
     </div>
   );
 }
@@ -2597,42 +2801,158 @@ function UsersPage() {
           </div>
         </div>
       )}
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {showUpgrade && <AddOnPurchaseModal resource='seats' onClose={()=>setShowUpgrade(false)}/>}
     </div>
   );
 }
 
 // ─── BILLING ─────────────────────────────
 function BillingPage() {
-  const { tier, features } = useAuth();
+  const { tier, features, limits, baseLimits, addons, reloadAddons, company } = useAuth();
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [addonResource, setAddonResource] = useState(null);
+  const [pricing, setPricing] = useState([]);
+
+  useEffect(() => {
+    supabase.from('addon_pricing').select('*').then(({ data }) => setPricing(data || []));
+  }, []);
+
   const badgeColor = { free:'badge-gray', basic:'badge-blue', standard:'badge-purple', premium:'badge-navy' };
+
+  const SLOT_RESOURCES = ['vehicles','guides','drivers','shuttles','safaris','tours','charters','trails','seats','schedules'];
+  const SLOT_LABELS    = { vehicles:'Vehicles', guides:'Guides', drivers:'Drivers', shuttles:'Shuttles',
+    safaris:'Safaris', tours:'Tours', charters:'Charters', trails:'Trails', seats:'User Seats', schedules:'Schedules' };
+
+  function getUnitPrice(key) {
+    const row = pricing.find(p => p.addon_key === key);
+    return row?.monthly_price || ADDON_DEFAULT_PRICES[key] || 99;
+  }
+
+  function getActiveAddonQty(key) {
+    return addons.filter(a => a.addon_key === key && a.active)
+      .reduce((s, a) => s + (a.quantity || 1), 0);
+  }
+
   return (
     <div>
-      <PageHeader title="Billing" subtitle="Subscription & plan"/>
+      <PageHeader title="Billing" subtitle="Subscription, limits & add-ons"/>
+
+      {/* ── Current Plan ── */}
       <div className="card p-6 mb-5">
         <div className="flex justify-between items-start">
-          <div><h2 className="font-bold text-navy text-lg mb-2">Current Plan</h2><div className="flex items-center gap-2"><span className={`badge ${badgeColor[tier]} text-base px-4 py-1`}>{TIERS[tier].label}</span><span className="text-gray-500 text-sm">{tier==='free'?'Free forever':tier==='premium'?'R2,499/month':'R'+TIERS[tier].price.toLocaleString()+'/year'}</span></div></div>
-          {tier!=='premium' && <button className="btn-primary flex items-center gap-2" onClick={()=>setShowUpgrade(true)}><Icon name="upgrade" size={16}/>Upgrade</button>}
+          <div>
+            <h2 className="font-bold text-navy text-lg mb-2">Current Plan</h2>
+            <div className="flex items-center gap-2">
+              <span className={`badge ${badgeColor[tier]} text-base px-4 py-1`}>{TIERS[tier].label}</span>
+              <span className="text-gray-500 text-sm">
+                {tier==='free' ? 'Free forever' : tier==='premium' ? 'R2,499/month' : `R${TIERS[tier].price.toLocaleString()}/year`}
+              </span>
+            </div>
+          </div>
+          {tier !== 'premium' && (
+            <button className="btn-primary flex items-center gap-2" onClick={()=>setShowUpgrade(true)}>
+              <Icon name="upgrade" size={16}/>Upgrade Plan
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ── Features ── */}
       <div className="card p-6 mb-5">
-        <h2 className="font-bold text-navy mb-4">Features</h2>
+        <h2 className="font-bold text-navy mb-4">Included Features</h2>
         <div className="grid grid-cols-2 gap-3">
-          {[['No invoice watermark', tier!=='free'],['Company logo on invoices',features.logo],['CSV data export',features.csvExport],['Firearm Register',features.firearmRegister],['Auto email backup',features.autoBackup],['White-label branding',features.whiteLabel]].map(([label,enabled])=>(
-            <div key={label} className={`flex items-center gap-2 text-sm ${enabled?'text-gray-700':'text-gray-300'}`}><Icon name={enabled?'check':'x'} size={14} className={enabled?'text-green-500':'text-gray-200'}/>{label}</div>
+          {[
+            ['No invoice watermark',   tier !== 'free'],
+            ['Company logo on invoices', features.logo],
+            ['CSV data export',          features.csvExport],
+            ['Firearm Register',         features.firearmRegister],
+            ['White-label branding',     features.whiteLabel],
+            ['Auto email backup',        features.autoBackup],
+          ].map(([label, enabled]) => (
+            <div key={label} className={`flex items-center gap-2 text-sm ${enabled ? 'text-gray-700' : 'text-gray-300'}`}>
+              <Icon name={enabled ? 'check' : 'x'} size={14} className={enabled ? 'text-green-500' : 'text-gray-200'}/>
+              {label}
+            </div>
           ))}
         </div>
       </div>
-      <div className="card p-6">
-        <h2 className="font-bold text-navy mb-4">Limits</h2>
-        <div className="grid grid-cols-4 gap-3">
-          {Object.entries(TIER_LIMITS[tier]).map(([k,v])=>(
-            <div key={k} className="bg-gray-50 rounded-xl p-3 text-center"><div className="text-2xl font-black text-navy">{v===null?'∞':v}</div><div className="text-xs text-gray-400 capitalize">{k}</div></div>
-          ))}
+
+      {/* ── Slot Usage + Buy More ── */}
+      <div className="card p-6 mb-5">
+        <h2 className="font-bold text-navy mb-1">Resource Slots</h2>
+        <p className="text-sm text-gray-400 mb-4">Base plan limits · purchased extras shown separately · click Buy to add more</p>
+        <div className="space-y-3">
+          {SLOT_RESOURCES.map(key => {
+            const base  = baseLimits[key];
+            const extra = getActiveAddonQty(key);
+            const total = limits[key]; // null = unlimited
+            const price = getUnitPrice(key);
+            return (
+              <div key={key} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                <div className="w-28 flex-shrink-0">
+                  <span className="text-sm font-semibold text-gray-700">{SLOT_LABELS[key]}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-sm text-gray-500">
+                    {base === null ? '∞' : base} base
+                  </span>
+                  {extra > 0 && (
+                    <span className="text-xs bg-gold/20 text-yellow-700 px-2 py-0.5 rounded-full font-semibold">
+                      +{extra} extra
+                    </span>
+                  )}
+                  {total !== null && (
+                    <span className="text-xs text-gray-400">= {total} total</span>
+                  )}
+                  {total === null && extra === 0 && (
+                    <span className="text-xs text-gray-400">unlimited</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-gray-400">R{price}/mo per slot</span>
+                  <button
+                    className="text-xs px-3 py-1 bg-navy text-white rounded-full hover:bg-navy/80 font-semibold"
+                    onClick={() => setAddonResource(key)}>
+                    + Buy
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
-      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+
+      {/* ── Active purchased add-ons ── */}
+      {addons.length > 0 && (
+        <div className="card p-6 mb-5">
+          <h2 className="font-bold text-navy mb-4">Active Add-ons</h2>
+          <table>
+            <thead>
+              <tr><th>Type</th><th>Qty</th><th>Price/mo</th><th>Total/mo</th><th>Added</th></tr>
+            </thead>
+            <tbody>
+              {addons.map(a => (
+                <tr key={a.id}>
+                  <td className="capitalize font-medium">{SLOT_LABELS[a.addon_key] || a.addon_key}</td>
+                  <td>{a.quantity || 1} slot{(a.quantity || 1) > 1 ? 's' : ''}</td>
+                  <td className="text-gray-500">R{a.price_per_unit || 0}</td>
+                  <td className="font-semibold">R{((a.price_per_unit || 0) * (a.quantity || 1)).toLocaleString()}</td>
+                  <td className="text-gray-400 text-xs">{a.created_at ? new Date(a.created_at).toLocaleDateString('en-ZA') : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+            <span className="text-sm text-gray-500">Total add-ons</span>
+            <span className="font-bold text-navy">
+              R{addons.reduce((s, a) => s + (a.price_per_unit || 0) * (a.quantity || 1), 0).toLocaleString()}/month
+            </span>
+          </div>
+        </div>
+      )}
+
+      {showUpgrade   && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+      {addonResource && <AddOnPurchaseModal resource={addonResource} onClose={()=>{ setAddonResource(null); reloadAddons(); }}/>}
     </div>
   );
 }
