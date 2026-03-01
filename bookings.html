@@ -3982,6 +3982,7 @@ function MarketingPageEditor() {
 // ─── REPORT A PROBLEM MODAL ──────────────────
 function ReportModal({ onClose }) {
   const CATS = ['Bug','Billing','Feature Request','Other'];
+  const { company, profile } = useAuth();
   const [cat, setCat] = useState('Bug');
   const [subject, setSubject] = useState('');
   const [desc, setDesc] = useState('');
@@ -3992,12 +3993,28 @@ function ReportModal({ onClose }) {
     e.preventDefault();
     if (!subject.trim() || !desc.trim()) return;
     setSaving(true);
-    const { error } = await supabase.rpc('submit_support_ticket', {
+    const { data: ticketId, error } = await supabase.rpc('submit_support_ticket', {
       p_category: cat, p_subject: subject.trim(), p_description: desc.trim()
     });
     setSaving(false);
-    if (!error) setDone(true);
-    else showToast('Failed to submit — please try again', 'error');
+    if (!error) {
+      setDone(true);
+      // Fire-and-forget email notification — failure doesn't affect user experience
+      fetch('/api/notify-ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: cat,
+          subject: subject.trim(),
+          description: desc.trim(),
+          company_name: company?.name || '',
+          submitter_email: profile?.email || '',
+          ticket_id: ticketId,
+        }),
+      }).catch(() => {}); // Silently ignore network errors
+    } else {
+      showToast('Failed to submit — please try again', 'error');
+    }
   }
 
   if (done) return (
