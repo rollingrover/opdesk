@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title id="page-title">Operator Profile · OpDesk</title>
+<meta name="description" id="page-desc" content="Tour operator profile on OpDesk"/>
+<meta property="og:title" id="og-title" content="Operator Profile · OpDesk"/>
+<meta property="og:description" id="og-desc" content=""/>
+<meta property="og:image" id="og-image" content=""/>
+<meta property="og:type" content="website"/>
+<meta name="robots" content="index, follow"/>
+<link rel="canonical" id="canonical" href=""/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+<style>
+  :root { --navy:#0F2540; --gold:#D4A853; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f8f9fa; color:#1a1a2e; }
+  a { color:var(--gold); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+
+  /* NAV */
+  .topbar { background:var(--navy); padding:14px 32px; display:flex; align-items:center; justify-content:space-between; }
+  .topbar-logo { display:flex; align-items:center; gap:10px; color:#fff; font-weight:900; font-size:18px; letter-spacing:-0.3px; text-decoration:none; }
+  .topbar-cta { background:var(--gold); color:var(--navy); font-weight:700; font-size:13px; padding:8px 20px; border-radius:9999px; text-decoration:none; }
+  .topbar-cta:hover { opacity:0.9; text-decoration:none; }
+
+  /* HERO */
+  .hero { position:relative; width:100%; height:360px; overflow:hidden; background:var(--navy); }
+  .hero-img { width:100%; height:100%; object-fit:cover; opacity:0.7; }
+  .hero-overlay { position:absolute; inset:0; background:linear-gradient(to bottom, rgba(15,37,64,0.2) 0%, rgba(15,37,64,0.75) 100%); }
+  .hero-content { position:absolute; bottom:36px; left:40px; right:40px; color:#fff; }
+  .hero-badge { display:inline-block; background:var(--gold); color:var(--navy); font-size:11px; font-weight:800; padding:3px 12px; border-radius:9999px; margin-bottom:10px; letter-spacing:0.05em; text-transform:uppercase; }
+  .hero-headline { font-size:clamp(24px,4vw,40px); font-weight:900; line-height:1.2; text-shadow:0 2px 8px rgba(0,0,0,0.3); }
+
+  /* BODY */
+  .container { max-width:860px; margin:0 auto; padding:40px 24px 80px; }
+  .card { background:#fff; border-radius:16px; border:1px solid #e5e7eb; padding:32px; margin-bottom:24px; }
+  .section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--gold); margin-bottom:10px; }
+  .about-text { font-size:16px; line-height:1.8; color:#374151; white-space:pre-wrap; }
+  .photos-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:0; }
+  .photos-grid img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; }
+  .contact-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f3f4f6; font-size:15px; }
+  .contact-row:last-child { border-bottom:none; }
+  .contact-icon { width:32px; height:32px; border-radius:8px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .powered { text-align:center; margin-top:40px; font-size:13px; color:#9ca3af; }
+  .powered a { color:#9ca3af; text-decoration:underline; }
+  .not-found { text-align:center; padding:100px 24px; }
+  .not-found h1 { font-size:32px; color:var(--navy); margin-bottom:12px; }
+  .not-found p { color:#6b7280; margin-bottom:24px; }
+  .btn-primary { background:var(--navy); color:#fff; font-weight:700; font-size:14px; padding:12px 28px; border-radius:9999px; display:inline-block; }
+  .loading { text-align:center; padding:120px 24px; color:#6b7280; font-size:16px; }
+  @media(max-width:640px) {
+    .hero { height:260px; }
+    .hero-content { left:20px; right:20px; bottom:20px; }
+    .photos-grid { grid-template-columns:1fr 1fr; }
+    .container { padding:24px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <a href="https://opdesk.app" class="topbar-logo">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#D4A853"/><path d="M8 22V10l8 6 8-6v12" stroke="#0F2540" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    OpDesk
+  </a>
+  <a href="https://opdesk.app/bookings.html" class="topbar-cta">List your operation →</a>
+</nav>
+
+<div id="root"><div class="loading">Loading operator profile…</div></div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://tasxyiibrjrpnuemorpx.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhc3h5aWlicmpycG51ZW1vcnB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA1MzcyMDAsImV4cCI6MjA1NjExMzIwMH0.wTbHDhDiCnFYvtFz9pJniS9Xj0eBnXkAuFvV6FMNJfk');
+
+function getSlug() {
+  // Support /operators/slug-name URL (Vercel rewrite) and ?slug=... fallback
+  const path = window.location.pathname;
+  const parts = path.split('/').filter(Boolean);
+  if (parts[0] === 'operators' && parts[1]) return parts[1];
+  return new URLSearchParams(window.location.search).get('slug') || '';
+}
+
+async function load() {
+  const slug = getSlug();
+  if (!slug) { render404(); return; }
+
+  const { data, error } = await sb
+    .from('operator_pages')
+    .select('*')
+    .eq('slug', slug)
+    .eq('active', true)
+    .maybeSingle();
+
+  if (error || !data) { render404(slug); return; }
+
+  // SEO meta
+  document.getElementById('page-title').textContent = data.headline + ' · OpDesk';
+  document.getElementById('page-desc').setAttribute('content', (data.about||'').slice(0,160));
+  document.getElementById('og-title').setAttribute('content', data.headline + ' · OpDesk');
+  document.getElementById('og-desc').setAttribute('content', (data.about||'').slice(0,160));
+  if (data.photos && data.photos[0]) document.getElementById('og-image').setAttribute('content', data.photos[0]);
+  document.getElementById('canonical').setAttribute('href', `https://opdesk.app/operators/${slug}`);
+
+  renderPage(data);
+}
+
+function renderPage(d) {
+  const photos = (d.photos || []).filter(Boolean);
+  const heroImg = photos[0] || '';
+
+  const heroHTML = heroImg
+    ? `<div class="hero"><img class="hero-img" src="${heroImg}" alt="${d.headline}"/><div class="hero-overlay"></div><div class="hero-content"><div class="hero-badge">Operator Profile</div><h1 class="hero-headline">${esc(d.headline)}</h1></div></div>`
+    : `<div class="hero" style="display:flex;align-items:flex-end;padding:0 40px 36px"><div class="hero-content" style="position:static"><div class="hero-badge">Operator Profile</div><h1 class="hero-headline">${esc(d.headline)}</h1></div></div>`;
+
+  const photosHTML = photos.length > 1
+    ? `<div class="card"><div class="section-label">Gallery</div><div class="photos-grid">${photos.slice(1).map(p=>`<img src="${p}" alt="Gallery photo" loading="lazy"/>`).join('')}</div></div>`
+    : '';
+
+  const aboutHTML = d.about
+    ? `<div class="card"><div class="section-label">About</div><p class="about-text">${esc(d.about)}</p></div>`
+    : '';
+
+  const contacts = [];
+  if (d.contact_email) contacts.push(`<div class="contact-row"><div class="contact-icon">✉️</div><a href="mailto:${d.contact_email}">${esc(d.contact_email)}</a></div>`);
+  if (d.contact_phone) contacts.push(`<div class="contact-row"><div class="contact-icon">📞</div><a href="tel:${d.contact_phone.replace(/\s/g,'')}">${esc(d.contact_phone)}</a></div>`);
+  if (d.website)       contacts.push(`<div class="contact-row"><div class="contact-icon">🌐</div><a href="${d.website}" target="_blank" rel="noopener">${esc(d.website.replace(/^https?:\/\//,''))}</a></div>`);
+
+  const contactHTML = contacts.length
+    ? `<div class="card"><div class="section-label">Get in touch</div>${contacts.join('')}</div>`
+    : '';
+
+  document.getElementById('root').innerHTML = `
+    ${heroHTML}
+    <div class="container">
+      ${aboutHTML}
+      ${photosHTML}
+      ${contactHTML}
+      <div class="powered">Listed on <a href="https://opdesk.app" target="_blank">OpDesk</a> — the booking platform for tour &amp; safari operators. <a href="https://opdesk.app/bookings.html">List your operation →</a></div>
+    </div>
+  `;
+}
+
+function render404(slug) {
+  document.getElementById('root').innerHTML = `
+    <div class="not-found">
+      <div style="font-size:56px;margin-bottom:20px">🦁</div>
+      <h1>Operator not found</h1>
+      <p>The profile "${esc(slug||'...')}" doesn't exist or has been deactivated.</p>
+      <a href="https://opdesk.app" class="btn-primary">Back to OpDesk</a>
+    </div>`;
+}
+
+function esc(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+load();
+</script>
+</body>
+</html>
