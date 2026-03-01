@@ -417,7 +417,21 @@ if (window.location.search.includes('admin')) {
     <h2 class="section-title">Simple, local, no surprises</h2>
     <p class="section-sub">All plans include unlimited bookings (Basic+). No per-booking fees, ever. Extra slots available on any plan.</p>
   </div>
-  <div class="pricing-grid">
+  
+      <!-- Billing toggle -->
+      <div style="display:flex;justify-content:center;margin-bottom:32px;">
+        <div style="display:inline-flex;background:#e5e7eb;border-radius:9999px;padding:4px;gap:4px;">
+          <button id="toggle-monthly" onclick="setBillingCycle('monthly')"
+            style="padding:8px 24px;border-radius:9999px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:all 0.2s;background:#0F2540;color:white;">
+            Monthly
+          </button>
+          <button id="toggle-annual" onclick="setBillingCycle('annual')"
+            style="padding:8px 24px;border-radius:9999px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#6b7280;">
+            Annual <span style="margin-left:6px;font-size:11px;background:#D4A853;color:#0F2540;padding:2px 8px;border-radius:9999px;font-weight:700;">2 months free</span>
+          </button>
+        </div>
+      </div>
+<div class="pricing-grid">
     <!-- Free -->
     <div class="pricing-card">
       <div class="tier-name">Free</div>
@@ -496,6 +510,49 @@ if (window.location.search.includes('admin')) {
 
 
 <script>
+// OpDesk — dynamic pricing with monthly/annual toggle
+window._opDeskPricing = {};
+window._opDeskCycle = 'monthly';
+
+function setBillingCycle(cycle) {
+  window._opDeskCycle = cycle;
+  // Update toggle buttons
+  const mo = document.getElementById('toggle-monthly');
+  const an = document.getElementById('toggle-annual');
+  if (mo && an) {
+    mo.style.background = cycle === 'monthly' ? '#0F2540' : 'transparent';
+    mo.style.color       = cycle === 'monthly' ? 'white'   : '#6b7280';
+    an.style.background  = cycle === 'annual'  ? '#0F2540' : 'transparent';
+    an.style.color        = cycle === 'annual'  ? 'white'   : '#6b7280';
+  }
+  // Re-render prices
+  const p = window._opDeskPricing;
+  ['basic','standard'].forEach(key => {
+    const priceEl = document.getElementById('price-' + key);
+    const subEl   = document.getElementById('sub-' + key);
+    if (!priceEl || !p[key]) return;
+    if (cycle === 'annual') {
+      const ann = p[key].annual;
+      const approx = Math.round(ann / 12);
+      priceEl.textContent = 'R' + ann.toLocaleString('en-ZA');
+      if (subEl) subEl.textContent = 'per year · ~R' + approx + '/mo · 2 months free';
+    } else {
+      const mo = p[key].monthly;
+      priceEl.textContent = 'R' + mo.toLocaleString('en-ZA');
+      if (subEl) subEl.textContent = 'per month';
+    }
+  });
+  // Update hero From price
+  const fromEl = document.getElementById('price-from');
+  if (fromEl && p['basic']) {
+    if (cycle === 'annual') {
+      fromEl.textContent = 'From R' + p['basic'].annual.toLocaleString('en-ZA') + '/yr';
+    } else {
+      fromEl.textContent = 'From R' + p['basic'].monthly.toLocaleString('en-ZA') + '/mo';
+    }
+  }
+}
+
 (async function loadPricing() {
   try {
     const SUPABASE_URL = 'https://tasxyiibrjrpnuemorpx.supabase.co';
@@ -507,39 +564,17 @@ if (window.location.search.includes('admin')) {
       .select('tier,label,monthly_price,annual_price');
     if (error || !tiers) return;
 
-    let lowestPaidMonthly = null;
-
     tiers.forEach(({ tier, monthly_price, annual_price }) => {
       const key = tier.toLowerCase();
       if (key === 'free') return;
-
-      const priceEl = document.getElementById('price-' + key);
-      const subEl   = document.getElementById('sub-' + key);
-      if (!priceEl) return;
-
-      const annualN  = parseFloat(annual_price)  || 0;
-      const monthlyN = parseFloat(monthly_price) || 0;
-
-      // Decide display: if annual_price is set (>0), show annual; else show monthly
-      if (annualN > 0) {
-        const approxMonthly = Math.round(annualN / 12);
-        priceEl.textContent = 'R' + annualN.toLocaleString('en-ZA');
-        if (subEl) subEl.textContent = 'per year · ~R' + approxMonthly + '/month';
-        if (lowestPaidMonthly === null || annualN / 12 < lowestPaidMonthly) {
-          lowestPaidMonthly = annualN / 12;
-          const fromEl = document.getElementById('price-from');
-          if (fromEl) fromEl.textContent = 'From R' + annualN.toLocaleString('en-ZA');
-        }
-      } else if (monthlyN > 0) {
-        priceEl.textContent = 'R' + monthlyN.toLocaleString('en-ZA');
-        if (subEl) subEl.textContent = 'per month';
-        if (lowestPaidMonthly === null || monthlyN < lowestPaidMonthly) {
-          lowestPaidMonthly = monthlyN;
-          const fromEl = document.getElementById('price-from');
-          if (fromEl) fromEl.textContent = 'From R' + monthlyN.toLocaleString('en-ZA');
-        }
-      }
+      window._opDeskPricing[key] = {
+        monthly: parseFloat(monthly_price) || 0,
+        annual:  parseFloat(annual_price)  || 0
+      };
     });
+
+    // Render with default cycle (monthly)
+    setBillingCycle('monthly');
   } catch (e) {
     console.warn('OpDesk: could not load live pricing', e);
   }
