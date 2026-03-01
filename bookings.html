@@ -1872,6 +1872,7 @@ function TrailsPage() {
   const [form, setForm]           = useState({});
   const [saving, setSaving]       = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [addonResource, setAddonResource] = useState(null);
   const limit = limits.trails;
 
   async function load() {
