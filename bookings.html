@@ -682,6 +682,40 @@ function UpgradeModal({ onClose }) {
   );
 }
 
+// ─── TOTP UTILITIES ──────────────────────────────────────────────────────────
+async function verifyTOTP(secret, code) {
+  try {
+    // Decode base32 secret
+    const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = '';
+    for (const c of secret.replace(/=+$/,'').toUpperCase()) {
+      const i = base32chars.indexOf(c);
+      if (i < 0) continue;
+      bits += i.toString(2).padStart(5,'0');
+    }
+    const bytes = new Uint8Array(Math.floor(bits.length/8));
+    for (let i=0;i<bytes.length;i++) bytes[i] = parseInt(bits.slice(i*8,i*8+8),2);
+
+    const key = await crypto.subtle.importKey('raw', bytes, {name:'HMAC',hash:'SHA-1'}, false, ['sign']);
+
+    // Check current window ±1 step (30-second periods)
+    const T = Math.floor(Date.now()/1000/30);
+    for (const offset of [-1,0,1]) {
+      const counter = BigInt(T+offset);
+      const buf = new ArrayBuffer(8);
+      const view = new DataView(buf);
+      view.setUint32(0, Number(counter >> 8n), false);
+      view.setUint32(4, Number(counter & 0xFFFFFFFFn), false);
+      const sig = await crypto.subtle.sign('HMAC', key, buf);
+      const hmac = new Uint8Array(sig);
+      const offset2 = hmac[19] & 0xf;
+      const otp = ((hmac[offset2]&0x7f)<<24|(hmac[offset2+1]&0xff)<<16|(hmac[offset2+2]&0xff)<<8|(hmac[offset2+3]&0xff)) % 1000000;
+      if (otp.toString().padStart(6,'0') === code.trim()) return true;
+    }
+    return false;
+  } catch(e) { console.error('TOTP verify error', e); return false; }
+}
+
 function AuthScreen() {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -695,6 +729,9 @@ function AuthScreen() {
   const [totpSecret, setTotpSecret] = useState('');
   const [totpQR, setTotpQR] = useState('');
   const [totpCode, setTotpCode] = useState('');
+  const [pendingTotpSecret, setPendingTotpSecret] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -707,10 +744,23 @@ function AuthScreen() {
 
   async function handleLogin(e) {
     e.preventDefault(); setError(''); setLoading(true);
-    const { error } = await signIn(email, password);
+    const { error, data: signInData } = await signIn(email, password);
     if (error) { setError(error.message); setLoading(false); return; }
-    // onAuthStateChange fires → loadData runs → AppShell renders main app
-    // loading state is managed by AuthProvider from here
+    // Stash email/password for potential 2FA re-auth
+    setPendingEmail(email); setPendingPassword(password);
+    // Check if this account has 2FA enabled
+    try {
+      const { data: profileData } = await supabase.rpc('get_my_data');
+      if (profileData?.profile?.totp_enabled && profileData?.profile?.totp_secret) {
+        // Stash secret for verification, sign out to hold the gate
+        setPendingTotpSecret(profileData.profile.totp_secret);
+        await supabase.auth.signOut();
+        setMode('verify2fa');
+        setLoading(false);
+        return;
+      }
+    } catch(e) { /* if RPC fails, allow login normally */ }
+    // No 2FA — onAuthStateChange fires → app loads
   }
 
   async function handleRegister(e) {
@@ -727,9 +777,21 @@ function AuthScreen() {
   }
 
   async function handleTOTP(e) {
-    e.preventDefault(); setLoading(true);
+    e.preventDefault(); setLoading(true); setError('');
+    const ok = await verifyTOTP(totpSecret, totpCode);
+    if (!ok) { setError('Incorrect code — check your authenticator and try again'); setLoading(false); return; }
     await supabase.from('profiles').update({ totp_secret: totpSecret, totp_enabled: true }).eq('email', email);
     setSuccess('2FA enabled — sign in below'); setMode('login'); setLoading(false);
+  }
+
+  async function handleVerify2FA(e) {
+    e.preventDefault(); setError(''); setLoading(true);
+    const ok = await verifyTOTP(pendingTotpSecret, totpCode);
+    if (!ok) { setError('Incorrect code — please try again'); setLoading(false); return; }
+    // Code correct — sign back in to create the session
+    const { error } = await signIn(pendingEmail, pendingPassword);
+    if (error) { setError('Authentication failed — please sign in again'); setMode('login'); setLoading(false); return; }
+    // onAuthStateChange fires → app loads
   }
 
   async function handleForgot(e) {
@@ -814,6 +876,16 @@ function AuthScreen() {
               </div>
               <div><label className="text-sm font-semibold text-gray-600 block mb-1">Enter 6-digit code</label><input value={totpCode} onChange={e=>setTotpCode(e.target.value)} maxLength={6} placeholder="000000" className="text-center tracking-widest text-xl"/></div>
               <button className="btn-primary w-full py-2.5" disabled={loading||totpCode.length!==6}>{loading?'Saving...':'Enable 2FA & Continue'}</button>
+            </form>
+          )}
+
+          {mode==='verify2fa' && (
+            <form onSubmit={handleVerify2FA} className="space-y-4">
+              <div className="flex items-center gap-2 mb-2"><Icon name="shield" size={20} className="text-gold"/><h2 className="text-xl font-bold text-navy">Two-Factor Authentication</h2></div>
+              <p className="text-sm text-gray-600">Enter the 6-digit code from your authenticator app to continue.</p>
+              <div><label className="text-sm font-semibold text-gray-600 block mb-1">Authenticator Code</label><input value={totpCode} onChange={e=>setTotpCode(e.target.value)} maxLength={6} placeholder="000000" className="text-center tracking-widest text-xl font-mono" autoFocus inputMode="numeric" pattern="[0-9]*"/></div>
+              <button className="btn-primary w-full py-2.5" disabled={loading||totpCode.length!==6}>{loading?'Verifying...':'Verify & Sign In'}</button>
+              <div className="text-center"><button type="button" className="text-gold text-sm hover:underline" onClick={()=>{setMode('login');setTotpCode('');}}>Back to Sign In</button></div>
             </form>
           )}
 
@@ -3704,9 +3776,16 @@ function BillingPage() {
 
 // ─── SETTINGS ────────────────────────────
 function SettingsPage() {
-  const { company, features, reload } = useAuth();
+  const { company, features, reload, profile } = useAuth();
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [twoFASecret] = React.useState(() => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    return Array.from({length:32}, ()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  });
+  const [twoFACode, setTwoFACode] = useState('');
+  const [twoFASaving, setTwoFASaving] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -3807,6 +3886,50 @@ function SettingsPage() {
           </div>
           <button type="submit" className="btn-primary flex items-center gap-2" disabled={saving}><Icon name="check" size={16}/>{saving?'Saving...':'Save Settings'}</button>
         </form>
+      </div>
+
+      {/* 2FA Security Card */}
+      <div className="card p-6 mb-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-bold text-navy">Two-Factor Authentication</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{profile?.totp_enabled ? '2FA is active on your account' : 'Strongly recommended — required for Firearm Register users'}</p>
+          </div>
+          <span className={`text-xs font-bold px-3 py-1 rounded-full ${profile?.totp_enabled ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{profile?.totp_enabled ? 'Enabled' : 'Not Enabled'}</span>
+        </div>
+        {!profile?.totp_enabled && !show2FASetup && (
+          <button className="btn-primary flex items-center gap-2" onClick={()=>setShow2FASetup(true)}><Icon name="shield" size={16}/>Enable 2FA</button>
+        )}
+        {!profile?.totp_enabled && show2FASetup && (
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-gray-600">Scan with Google Authenticator or Authy, then enter the 6-digit code to confirm.</p>
+            <div className="flex justify-center">
+              <img src={`https://chart.googleapis.com/chart?chs=180x180&chld=M|0&cht=qr&chl=${encodeURIComponent(`otpauth://totp/OpDesk:${encodeURIComponent(profile?.email||'')}?secret=${twoFASecret}&issuer=OpDesk&digits=6&period=30`)}`} alt="QR" className="border-4 border-navy rounded-lg" style={{width:180,height:180}}/>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Manual entry secret:</p>
+              <div className="flex items-center gap-2"><code className="text-xs font-mono text-navy bg-white px-2 py-1 rounded border flex-1">{twoFASecret}</code><button type="button" className="text-gold" onClick={()=>navigator.clipboard.writeText(twoFASecret)}><Icon name="copy" size={14}/></button></div>
+            </div>
+            <div><label className="text-sm font-semibold text-gray-600 block mb-1">Confirm 6-digit code</label><input value={twoFACode} onChange={e=>setTwoFACode(e.target.value)} maxLength={6} placeholder="000000" className="text-center tracking-widest text-xl font-mono" inputMode="numeric" pattern="[0-9]*"/></div>
+            <div className="flex gap-3">
+              <button className="btn-primary flex items-center gap-2" disabled={twoFASaving||twoFACode.length!==6} onClick={async()=>{
+                setTwoFASaving(true);
+                const ok = await verifyTOTP(twoFASecret, twoFACode);
+                if (!ok) { toast('Incorrect code — try again','error'); setTwoFASaving(false); return; }
+                await supabase.from('profiles').update({totp_secret:twoFASecret,totp_enabled:true}).eq('id',profile.id);
+                toast('2FA enabled'); reload(); setTwoFASaving(false); setShow2FASetup(false);
+              }}><Icon name="shield" size={16}/>{twoFASaving?'Enabling...':'Enable 2FA'}</button>
+              <button className="btn-secondary" onClick={()=>setShow2FASetup(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {profile?.totp_enabled && (
+          <button className="btn-secondary text-red-600 flex items-center gap-2" onClick={async()=>{
+            if (!confirm('Disable 2FA? This will reduce your account security.')) return;
+            await supabase.from('profiles').update({totp_enabled:false,totp_secret:null}).eq('id',profile.id);
+            toast('2FA disabled'); reload();
+          }}><Icon name="alert" size={16}/>Disable 2FA</button>
+        )}
       </div>
     </div>
   );
@@ -4430,6 +4553,57 @@ function SASupportQueue() {
   );
 }
 
+// ─── FORCED 2FA ENROLLMENT (for Firearm Register users) ────────────────────
+function Force2FAEnrollment() {
+  const { profile, reload, signOut } = useAuth();
+  const [secret] = React.useState(() => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    return Array.from({length:32}, ()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  });
+  const email = profile?.email || '';
+  const qr = `https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl=${encodeURIComponent(`otpauth://totp/OpDesk:${encodeURIComponent(email)}?secret=${secret}&issuer=OpDesk&digits=6&period=30`)}`;
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleEnroll(e) {
+    e.preventDefault(); setError(''); setLoading(true);
+    const ok = await verifyTOTP(secret, code);
+    if (!ok) { setError('Incorrect code — check your authenticator and try again'); setLoading(false); return; }
+    await supabase.from('profiles').update({ totp_secret: secret, totp_enabled: true }).eq('id', profile.id);
+    toast('2FA enabled — Firearm Register access granted');
+    reload();
+    setLoading(false);
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{background:'#0F2540'}}>
+      <div className="w-full max-w-md mx-4">
+        <div className="text-center mb-6">
+          <div className="flex justify-center mb-3"><Logo size={56}/></div>
+          <h1 className="text-2xl font-black text-white">Two-Factor Authentication Required</h1>
+          <p className="text-sm mt-2" style={{color:'rgba(212,168,83,0.8)'}}>Your account has Firearm Register access — 2FA is mandatory for security compliance.</p>
+        </div>
+        <div className="card p-8">
+          {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4 flex items-center gap-2"><Icon name="alert" size={14}/>{error}</div>}
+          <form onSubmit={handleEnroll} className="space-y-4">
+            <div className="flex items-center gap-2 mb-2"><Icon name="shield" size={20} className="text-gold"/><h2 className="text-xl font-bold text-navy">Set Up 2FA Now</h2></div>
+            <p className="text-sm text-gray-600">Scan this QR code with Google Authenticator or Authy, then enter the 6-digit code to confirm.</p>
+            <div className="flex justify-center"><img src={qr} alt="QR" className="border-4 border-navy rounded-lg" style={{width:200,height:200}}/></div>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Manual entry secret:</p>
+              <div className="flex items-center gap-2"><code className="text-xs font-mono text-navy bg-white px-2 py-1 rounded border flex-1">{secret}</code><button type="button" className="text-gold" onClick={()=>navigator.clipboard.writeText(secret)}><Icon name="copy" size={14}/></button></div>
+            </div>
+            <div><label className="text-sm font-semibold text-gray-600 block mb-1">Confirm 6-digit code</label><input value={code} onChange={e=>setCode(e.target.value)} maxLength={6} placeholder="000000" className="text-center tracking-widest text-xl font-mono" autoFocus inputMode="numeric" pattern="[0-9]*"/></div>
+            <button className="btn-primary w-full py-2.5" disabled={loading||code.length!==6}>{loading?'Enabling...':'Enable 2FA & Continue'}</button>
+          </form>
+          <div className="mt-4 text-center"><button type="button" className="text-sm text-gray-400 hover:underline" onClick={signOut}>Sign out</button></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppShell() {
   const { session, company, loading, features } = useAuth();
   const [page, setPage] = useState('dashboard');
@@ -4443,6 +4617,11 @@ function AppShell() {
   );
 
   if (!session || !company) return <AuthScreen/>;
+
+  // Force 2FA for Firearm Register users who haven't enrolled
+  if (features.firearmRegister && profile && !profile.totp_enabled) {
+    return <Force2FAEnrollment/>;
+  }
 
   const ml = collapsed ? 'ml-16' : 'ml-56';
   const pages = {
