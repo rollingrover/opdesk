@@ -1,5 +1,13 @@
 {
   "cleanUrls": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.opdesk.app" }],
+      "destination": "https://opdesk.app/:path*",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)\\.html",
