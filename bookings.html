@@ -443,7 +443,6 @@ const Icon = ({ name, size=18, className='' }) => {
     shuttles: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
     charters: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M2 20h20M3 20V10l9-7 9 7v10"/><path d="M9 20v-6h6v6"/></svg>,
     clients: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>,
-    clients: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>,
     guests: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
     guides: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M12 14c-5 0-8 2.5-8 4v2h16v-2c0-1.5-3-4-8-4z"/></svg>,
     drivers: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20h16"/><path d="M8 20v-4a4 4 0 018 0v4"/></svg>,
@@ -3059,7 +3058,7 @@ function CertRow({ label, checked, onToggle, level, onLevel, levelPlaceholder, e
 
 // ─── GUIDE FORM PAGE ─────────────────────
 function GuidesPage() {
-  const { company, limits } = useAuth();
+  const { company, limits, companyRegion } = useAuth();
   const [items,  setItems]  = useState([]);
   const [loading,setLoading]= useState(true);
   const [view,   setView]   = useState('list'); // 'list' | 'form'
@@ -3366,7 +3365,7 @@ function GuidesPage() {
 
 // ─── DRIVER FORM PAGE ────────────────────
 function DriversPage() {
-  const { company, limits } = useAuth();
+  const { company, limits, companyRegion } = useAuth();
   const [items,  setItems]  = useState([]);
   const [loading,setLoading]= useState(true);
   const [view,   setView]   = useState('list');
