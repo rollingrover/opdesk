@@ -5634,7 +5634,7 @@ function App() {
 
 // ─── SUPERADMIN AUTH ─────────────────────────
 const SA_EMAIL = 'd2gborg@gmail.com';
-const SA_PASSWORD_HASH = 'opdesk-sa-2026'; // checked client-side as gate; real auth is Supabase role
+// SA auth: real gate is Supabase auth + check_is_superadmin() RPC
 
 function SuperAdminLogin({ onAuth }) {
   const [email, setEmail] = useState('');
