@@ -5060,6 +5060,26 @@ function Force2FAEnrollment() {
   );
 }
 
+
+class PageErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('[OpDesk PageError]', error, info); }
+  reset() { this.setState({ hasError: false, error: null }); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center">
+          <div className="text-red-500 font-bold mb-2">Page failed to load</div>
+          <pre className="text-xs text-gray-400 whitespace-pre-wrap mb-4">{String(this.state.error?.message || this.state.error)}</pre>
+          <button className="btn-primary" onClick={()=>this.setState({hasError:false,error:null})}>Try Again</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function AppShell() {
   const { session, company, loading, features } = useAuth();
   const [page, setPage] = useState('dashboard');
@@ -5091,7 +5111,7 @@ function AppShell() {
     <div className="flex min-h-screen">
       <Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed}/>
       <main className={`flex-1 ${ml} p-6 min-h-screen`} style={{transition:'margin 0.2s'}}>
-        {pages[page] || <DashboardPage/>}
+        <PageErrorBoundary key={page}>{pages[page] || <DashboardPage/>}</PageErrorBoundary>
       </main>
       {features.watermark && <div className="watermark">Powered by OpDesk · opdesk.app</div>}
       {/* Report a Problem floating button */}
