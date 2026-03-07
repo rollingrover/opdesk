@@ -569,7 +569,7 @@ function AuthProvider({ children }) {
       return { error: { message: err.message || 'Registration failed. Please try again.' } };
     }
   }
-  async function signOut() { await supabase.auth.signOut(); }
+  async function signOut() { await supabase.auth.signOut(); window.location.reload(); }
 
   const [addons, setAddons] = useState([]);
 
@@ -6339,7 +6339,7 @@ function AppShellWithAddons() {
   const pages = {
     dashboard: <DashboardPage/>, bookings: <BookingsPage/>, calendar: <CalendarPage/>,
     tours: <ToursPage/>, safaris: <SafarisPage/>, shuttles: <ShuttlesPage/>, charters: <ChartersPage/>, trails: <TrailsPage/>,
-    guests: <GuestsPage/>, guides: <GuidesPage/>, drivers: <DriversPage/>, vehicles: <VehiclesPage/>, schedules: <SchedulesPage/>,
+    guests: <GuestsPage/>, clients: <ClientsPage/>, guides: <GuidesPage/>, drivers: <DriversPage/>, vehicles: <VehiclesPage/>, schedules: <SchedulesPage/>,
     firearm: <FirearmRegisterPage/>, users: <UsersPage/>, billing: <BillingPage/>, settings: <SettingsPage/>, marketing: <MarketingPageEditor/>,
   };
 
@@ -6352,7 +6352,7 @@ function AppShellWithAddons() {
           style={{background:'#D4A853',color:'#0F2540',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,0.3)',fontWeight:900,fontSize:18}}>+</button>
       </div>
       <main className={`flex-1 ${ml} p-6 min-h-screen`} style={{transition:'margin 0.2s'}}>
-        {pages[page] || <DashboardPage/>}
+        <PageErrorBoundary key={page}>{pages[page] || <DashboardPage/>}</PageErrorBoundary>
       </main>
       {features.watermark && <div className="watermark">Powered by OpDesk · opdesk.app</div>}
       {showAddonShop && <AddonShop onClose={()=>setShowAddonShop(false)}/>}
