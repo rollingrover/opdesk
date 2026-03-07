@@ -1465,7 +1465,7 @@ function AddOnPurchaseModal({ resource, onClose }) {
 
 // ─── GENERIC CRUD ────────────────────────
 function CrudPage({ title, icon, table, fields, resourceKey }) {
-  const { company, limits } = useAuth();
+  const { company, limits, companyRegion} = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -2061,7 +2061,7 @@ function InvoiceModal({ booking, onClose }) {
 
 // ─── CALENDAR ────────────────────────────
 function CalendarPage() {
-  const { company, limits } = useAuth();
+  const { company, limits, companyRegion} = useAuth();
   const [bookings, setBookings] = useState([]);
   const [cur, setCur] = useState(new Date());
   const [showBookingModal, setShowBookingModal] = useState(false);
