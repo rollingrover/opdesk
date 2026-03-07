@@ -518,12 +518,12 @@ if (window.location.search.includes('admin')) {
       <div class="tier-price" id="price-standard" style="color:#D4A853">R1,099</div>
       <div class="tier-price-sub" id="sub-standard">per month</div>
       <ul class="tier-features">
-        <li>10 vehicles, guides &amp; safaris</li>
+        <li>Client list, invoicing &amp; PDF billing</li>
+        <li>10 vehicles, guides, safaris &amp; charters</li>
         <li>5 drivers, 10 shuttles, 5 charters</li>
-        <li>Full client list &amp; invoice system</li>
-        <li>Staff certification &amp; document tracking</li>
-        <li>5 user seats &amp; CSV data export</li>
-        <li>Operator marketing profile page</li>
+        <li>Staff certifications &amp; document tracking</li>
+        <li>Operator public profile page</li>
+        <li>5 user seats &amp; CSV export</li>
       </ul>
       <a href="./bookings.html" class="btn-plan btn-plan-navy">Start Standard</a>
     </div>
@@ -533,11 +533,11 @@ if (window.location.search.includes('admin')) {
       <div class="tier-price" id="price-premium">R2,499</div>
       <div class="tier-price-sub" id="sub-premium">per month</div>
       <ul class="tier-features">
-        <li>Everything in Standard, unlimited</li>
+        <li>Everything in Standard, fully unlimited</li>
+        <li>Client invoicing &amp; multi-currency billing</li>
         <li>Firearm Register &amp; compliance module</li>
-        <li>Full white-label branding (no OpDesk logo)</li>
-        <li>10 user seats &amp; multi-currency invoices</li>
-        <li>Auto email backup &amp; advanced reporting</li>
+        <li>Full white-label (your brand, no OpDesk logo)</li>
+        <li>10 user seats &amp; advanced reporting</li>
         <li>Priority support &amp; early feature access</li>
       </ul>
       <a href="./bookings.html" class="btn-plan btn-plan-outline">Start Premium</a>
@@ -565,7 +565,11 @@ if (window.location.search.includes('admin')) {
 
 <script>
 // OpDesk — dynamic pricing with monthly/annual toggle
-window._opDeskPricing = {};
+window._opDeskPricing = {
+  basic:    { monthly: 349,   annual: 3490  },
+  standard: { monthly: 1099,  annual: 10990 },
+  premium:  { monthly: 2499,  annual: 24990 }
+};
 window._opDeskCycle = 'monthly';
 
 function setBillingCycle(cycle) {
