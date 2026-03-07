@@ -603,10 +603,7 @@ function AuthProvider({ children }) {
       addons.some(a => a.addon_key === 'white_label' && a.active),
     watermark: TIER_FEATURES[tier].watermark &&
       !addons.some(a => a.addon_key === 'no_watermark' && a.active),
-  };,
-    clientList:      TIER_FEATURES[tier].clientList      || addons.some(a => a.addon_key === 'client_list'      && a.active),
-  };,
-    clientList:      TIER_FEATURES[tier].clientList      || addons.some(a => a.addon_key === 'client_list'      && a.active),
+    clientList: TIER_FEATURES[tier].clientList || addons.some(a => a.addon_key === 'client_list' && a.active),
   };
   const role = profile?.role || 'owner';
 
