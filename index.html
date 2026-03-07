@@ -465,8 +465,8 @@ if (window.location.search.includes('admin')) {
 <section class="pricing" id="pricing">
   <div class="centered">
     <div class="section-tag">Pricing</div>
-    <h2 class="section-title">Simple, local, no surprises</h2>
-    <p class="section-sub">All plans include unlimited bookings (Basic+). No per-booking fees, ever. Extra slots available on any plan.</p>
+    <h2 class="section-title">Priced for African operators, built for the world</h2>
+    <p class="section-sub">All paid plans include unlimited bookings. No per-booking fees, ever. Pay monthly or save 2 months with an annual plan.</p>
   </div>
   
       <!-- Billing toggle -->
@@ -503,9 +503,10 @@ if (window.location.search.includes('admin')) {
       <div class="tier-price-sub" id="sub-basic">per month</div>
       <ul class="tier-features">
         <li>Unlimited bookings</li>
-        <li>5 vehicles &amp; guides</li>
-        <li>3 drivers</li>
-        <li>Company logo on invoices</li>
+        <li>5 vehicles, guides &amp; safaris</li>
+        <li>3 drivers &amp; 5 shuttles</li>
+        <li>Client list &amp; invoice management</li>
+        <li>Company logo on invoices &amp; PDFs</li>
         <li>2 user seats</li>
       </ul>
       <a href="./bookings.html" class="btn-plan btn-plan-outline">Start Basic</a>
@@ -517,11 +518,12 @@ if (window.location.search.includes('admin')) {
       <div class="tier-price" id="price-standard" style="color:#D4A853">R1,099</div>
       <div class="tier-price-sub" id="sub-standard">per month</div>
       <ul class="tier-features">
-        <li>10 vehicles &amp; guides</li>
-        <li>5 drivers, 10 shuttles</li>
-        <li>5 tours/safaris/charters</li>
-        <li>5 user seats</li>
-        <li>CSV data export</li>
+        <li>10 vehicles, guides &amp; safaris</li>
+        <li>5 drivers, 10 shuttles, 5 charters</li>
+        <li>Full client list &amp; invoice system</li>
+        <li>Staff certification &amp; document tracking</li>
+        <li>5 user seats &amp; CSV data export</li>
+        <li>Operator marketing profile page</li>
       </ul>
       <a href="./bookings.html" class="btn-plan btn-plan-navy">Start Standard</a>
     </div>
@@ -531,11 +533,12 @@ if (window.location.search.includes('admin')) {
       <div class="tier-price" id="price-premium">R2,499</div>
       <div class="tier-price-sub" id="sub-premium">per month</div>
       <ul class="tier-features">
-        <li>Everything unlimited</li>
-        <li>Firearm Register module</li>
-        <li>White-label branding</li>
-        <li>Auto email backup</li>
-        <li>Priority support</li>
+        <li>Everything in Standard, unlimited</li>
+        <li>Firearm Register &amp; compliance module</li>
+        <li>Full white-label branding (no OpDesk logo)</li>
+        <li>10 user seats &amp; multi-currency invoices</li>
+        <li>Auto email backup &amp; advanced reporting</li>
+        <li>Priority support &amp; early feature access</li>
       </ul>
       <a href="./bookings.html" class="btn-plan btn-plan-outline">Start Premium</a>
     </div>
@@ -578,7 +581,7 @@ function setBillingCycle(cycle) {
   }
   // Re-render prices
   const p = window._opDeskPricing;
-  ['basic','standard'].forEach(key => {
+  ['basic','standard','premium'].forEach(key => {
     const priceEl = document.getElementById('price-' + key);
     const subEl   = document.getElementById('sub-' + key);
     if (!priceEl || !p[key]) return;
