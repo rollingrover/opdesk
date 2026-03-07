@@ -3810,15 +3810,43 @@ function SettingsPage() {
     const { error } = await supabase.storage.from('company-assets').upload(path, logoFile, { upsert:true });
     if (error) { toast(error.message, 'error'); setUploadingLogo(false); return; }
     const { data: { publicUrl } } = supabase.storage.from('company-assets').getPublicUrl(path);
-    await supabase.from('companies').update({ logo_url: publicUrl }).eq('id', company.id);
-    toast('Logo uploaded'); reload(); setUploadingLogo(false);
+    const { error: dbErr } = await supabase.from('companies').update({ logo_url: publicUrl }).eq('id', company.id);
+    if (dbErr) { toast('Upload ok but failed to save URL: ' + dbErr.message, 'error'); setUploadingLogo(false); return; }
+    // Update logoPreview so it renders immediately without waiting for reload
+    setLogoPreview(publicUrl);
+    setLogoFile(null);
+    toast('Logo uploaded successfully');
+    reload();
+    setUploadingLogo(false);
   }
 
   async function handleSave(e) {
-    e.preventDefault(); setSaving(true);
-    const { error } = await supabase.from('companies').update(form).eq('id', company.id);
-    if (error) toast(error.message, 'error');
-    else { toast('Settings saved'); reload(); }
+    e.preventDefault();
+    if (!company?.id) { toast('Company not loaded yet — please wait', 'error'); return; }
+    setSaving(true);
+    // Explicit safe column list — never overwrites logo_url, subscription fields, or system fields
+    const payload = {
+      name:         form.name         || null,
+      email:        form.email        || null,
+      phone:        form.phone        || null,
+      address:      form.address      || null,
+      vat_number:   form.vat_number   || null,
+      bank_name:    form.bank_name    || null,
+      bank_account: form.bank_account || null,
+      bank_branch:  form.bank_branch  || null,
+      country:      form.country      || 'South Africa',
+      currency:     form.currency     || 'ZAR',
+      language:     form.language     || 'en',
+      region:       form.region       || 'south_africa',
+    };
+    const { error } = await supabase.from('companies').update(payload).eq('id', company.id);
+    if (error) {
+      console.error('Settings save error:', error);
+      toast(error.message || error.details || 'Save failed', 'error');
+    } else {
+      toast('Settings saved');
+      reload();
+    }
     setSaving(false);
   }
 
