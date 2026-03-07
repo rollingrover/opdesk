@@ -760,7 +760,8 @@ function AuthScreen() {
         return;
       }
     } catch(e) { /* if RPC fails, allow login normally */ }
-    // No 2FA — onAuthStateChange fires → app loads
+    // No 2FA — loading state is managed by AuthProvider's onAuthStateChange handler
+    setLoading(false);
   }
 
   async function handleRegister(e) {
