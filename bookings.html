@@ -1644,7 +1644,7 @@ const ShuttlesPage = () => <CrudPage title="Shuttles" icon="shuttles" table="shu
 
 const ChartersPage = () => <CrudPage title="Charters" icon="charters" table="charters" resourceKey="charters" fields={[
   { key:'name', label:'Charter Name', required:true, primary:true, placeholder:'Deep Sea Fishing Charter' },
-  { key:'charter_type', label:'Type', type:'select', options:['boat','yacht','aircraft','other'] },
+  { key:'charter_type', label:'Type', type:'select', options:['road','boat','deep_sea_fishing','yacht','light_aircraft','helicopter','other'] },
   { key:'duration_hours', label:'Duration (hrs)', type:'number', placeholder:'8' },
   { key:'price', label:'Price (R)', type:'number', placeholder:'4500' },
   { key:'capacity', label:'Capacity', type:'number', placeholder:'10' },
