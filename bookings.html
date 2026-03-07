@@ -443,6 +443,7 @@ const Icon = ({ name, size=18, className='' }) => {
     shuttles: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
     charters: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M2 20h20M3 20V10l9-7 9 7v10"/><path d="M9 20v-6h6v6"/></svg>,
     clients: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>,
+    clients: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>,
     guests: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
     guides: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M12 14c-5 0-8 2.5-8 4v2h16v-2c0-1.5-3-4-8-4z"/></svg>,
     drivers: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20h16"/><path d="M8 20v-4a4 4 0 018 0v4"/></svg>,
@@ -602,6 +603,8 @@ function AuthProvider({ children }) {
       addons.some(a => a.addon_key === 'white_label' && a.active),
     watermark: TIER_FEATURES[tier].watermark &&
       !addons.some(a => a.addon_key === 'no_watermark' && a.active),
+  };,
+    clientList:      TIER_FEATURES[tier].clientList      || addons.some(a => a.addon_key === 'client_list'      && a.active),
   };,
     clientList:      TIER_FEATURES[tier].clientList      || addons.some(a => a.addon_key === 'client_list'      && a.active),
   };
@@ -2116,6 +2119,18 @@ function CalendarPage() {
               <button onClick={()=>setShowBookingModal(false)}><Icon name="x" size={18} className="text-gray-400"/></button>
             </div>
             <form onSubmit={handleSave} className="space-y-3">
+              {clientList.length > 0 && (
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Select Existing Client / Guest</label>
+                  <select onChange={e => {
+                    const c = clientList.find(x => x.id === e.target.value);
+                    if (c) setForm(f => ({ ...f, guest_id: c.id, guest_name: c.full_name, guest_email: c.email||f.guest_email, guest_phone: c.phone||f.guest_phone }));
+                  }} defaultValue="">
+                    <option value="">— New guest (fill in below) —</option>
+                    {clientList.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2"><label className="text-sm font-semibold text-gray-600 block mb-1">Guest Name *</label><input value={form.guest_name||''} onChange={e=>setForm({...form,guest_name:e.target.value})} required placeholder="John Dlamini"/></div>
                 <div><label className="text-sm font-semibold text-gray-600 block mb-1">Email</label><input type="email" value={form.guest_email||''} onChange={e=>setForm({...form,guest_email:e.target.value})} placeholder="guest@email.com"/></div>
@@ -2172,6 +2187,407 @@ function CalendarPage() {
 
 
 // ─── MODULE PAGES ────────────────────────
+
+// ══════════════════════════════════════════════
+//  CLIENTS MODULE
+//  Standard+ included · Free/Basic = addon
+// ══════════════════════════════════════════════
+
+function ClientInvoiceModal({ client, onClose }) {
+  const { company, features, currencySymbol: sym } = useAuth();
+  const [tours,   setTours]   = React.useState([]);
+  const [safaris, setSafaris] = React.useState([]);
+  const [lines,   setLines]   = React.useState([]);  // [{desc, qty, unit_price}]
+  const [loading, setLoading] = React.useState(true);
+  const [invoiceDate] = React.useState(new Date().toLocaleDateString('en-ZA'));
+  const invoiceRef = React.useRef(null);
+  const invNum = `CI-${Date.now().toString(36).toUpperCase()}`;
+  const showLogo = features.logo && company?.logo_url;
+  const isWhite  = features.whiteLabel;
+
+  React.useEffect(() => {
+    if (!company) return;
+    Promise.all([
+      supabase.from('tours').select('id,name,price,max_pax').eq('company_id', company.id).eq('status','active').order('name'),
+      supabase.from('safaris').select('id,name,price_per_person,max_pax').eq('company_id', company.id).eq('status','active').order('name'),
+    ]).then(([t, s]) => {
+      setTours(t.data || []);
+      setSafaris(s.data || []);
+      setLoading(false);
+    });
+  }, [company]);
+
+  function addLine(item, type) {
+    const price = type === 'tour' ? parseFloat(item.price||0) : parseFloat(item.price_per_person||0);
+    setLines(prev => [...prev, { id: Date.now(), desc: item.name, qty: 1, unit_price: price }]);
+  }
+  function removeLine(id) { setLines(prev => prev.filter(l => l.id !== id)); }
+  function updateLine(id, field, val) {
+    setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: field === 'desc' ? val : parseFloat(val)||0 } : l));
+  }
+
+  const subtotal = lines.reduce((s, l) => s + (l.qty * l.unit_price), 0);
+
+  function handlePrint() {
+    const w = window.open('', '_blank', 'width=820,height=1000');
+    const rows = lines.map(l => `<tr>
+      <td style="padding:10px 0;font-size:14px;border-bottom:1px solid #f3f4f6">${l.desc}</td>
+      <td style="padding:10px 0;font-size:14px;border-bottom:1px solid #f3f4f6;text-align:right">${l.qty}</td>
+      <td style="padding:10px 0;font-size:14px;border-bottom:1px solid #f3f4f6;text-align:right">${sym}${l.unit_price.toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+      <td style="padding:10px 0;font-size:14px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600">${sym}${(l.qty*l.unit_price).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+    </tr>`).join('');
+    w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invNum}</title>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#fff;color:#1a1a2e;padding:32px}
+    .hdr{background:#0F2540;border-radius:12px 12px 0 0;padding:20px 28px;display:flex;justify-content:space-between;align-items:center}
+    .bdy{border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:28px}
+    .lbl{font-size:10px;text-transform:uppercase;color:#9ca3af;margin-bottom:2px;font-weight:600}
+    .val{font-weight:700;color:#0F2540;font-size:14px}
+    th{text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;padding:6px 0;border-bottom:1px solid #e5e7eb}
+    .logo-img{height:40px;width:auto;object-fit:contain;border-radius:4px}
+    .footer{text-align:center;font-size:11px;color:#d1d5db;padding-top:14px;border-top:1px solid #f3f4f6;margin-top:14px}
+    </style></head><body>
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:12px">
+        ${showLogo ? `<img src="${company.logo_url}" class="logo-img" alt="logo"/>` : `<svg width="32" height="32" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="45" stroke="#D4A853" stroke-width="3" fill="none"/><polygon points="50,10 55,45 50,50 45,45" fill="#D4A853"/><polygon points="50,90 55,55 50,50 45,55" fill="#D4A853" opacity="0.5"/><polygon points="10,50 45,45 50,50 45,55" fill="#D4A853" opacity="0.5"/><polygon points="90,50 55,55 50,50 55,45" fill="#D4A853"/><circle cx="50" cy="50" r="6" fill="#D4A853"/></svg>`}
+        <div><div style="font-size:20px;font-weight:900;color:#fff">${isWhite || showLogo ? (company?.name||'OpDesk') : 'OpDesk'}</div>
+        <div style="font-size:11px;color:#D4A853;font-weight:600">${showLogo ? '' : company?.name||''}</div></div>
+      </div>
+      <div style="text-align:right"><div style="font-size:18px;font-weight:900;color:#D4A853">PRO FORMA</div>
+      <div style="font-size:12px;color:#fff;opacity:.7">Client Invoice</div></div>
+    </div>
+    <div class="bdy">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div><div class="lbl">Invoice No.</div><div class="val">${invNum}</div></div>
+        <div style="text-align:right"><div class="lbl">Invoice Date</div><div class="val">${invoiceDate}</div></div>
+      </div>
+      <div style="background:#f9fafb;border-radius:10px;padding:14px 18px;margin-bottom:18px">
+        <div class="lbl">Bill To</div>
+        <div style="font-weight:700;font-size:15px;margin-top:4px;color:#0F2540">${client.billing_company || client.full_name}</div>
+        ${client.billing_address ? `<div style="font-size:13px;color:#6b7280;margin-top:2px">${client.billing_address}${client.billing_city ? ', '+client.billing_city : ''}${client.billing_country ? ', '+client.billing_country : ''}</div>` : ''}
+        ${client.phone ? `<div style="font-size:13px;color:#6b7280">${client.phone}</div>` : ''}
+        ${client.vat_number ? `<div style="font-size:12px;color:#9ca3af;margin-top:4px">VAT: ${client.vat_number}</div>` : ''}
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
+        <thead><tr>
+          <th>Description</th>
+          <th style="text-align:right">Qty</th>
+          <th style="text-align:right">Unit Price</th>
+          <th style="text-align:right">Amount</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td colspan="3" style="text-align:right;padding-top:12px;border-top:2px solid #0F2540;font-weight:900">TOTAL DUE</td>
+          <td style="text-align:right;padding-top:12px;border-top:2px solid #0F2540;font-weight:900;font-size:16px;color:#D4A853">${sym}${subtotal.toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+        </tr></tfoot>
+      </table>
+      ${company?.bank_name ? `<div style="font-size:12px;color:#6b7280"><strong>Banking Details:</strong> ${company.bank_name} · Acc: ${company.bank_account||'—'} · Branch: ${company.bank_branch||'—'}</div>` : ''}
+      ${company?.vat_number ? `<div style="font-size:12px;color:#6b7280;margin-top:6px">VAT Reg: ${company.vat_number}</div>` : ''}
+      <div class="footer">${isWhite ? '' : features.logo ? '✦ OpDesk — Operator's Command Centre' : 'Powered by OpDesk · opdesk.app'}</div>
+    </div>
+    <script>window.onload=()=>{window.print();}<\/script>
+    </body></html>`);
+    w.document.close();
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal max-w-2xl w-full" style={{maxHeight:'90vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="font-bold text-navy text-lg">Client Invoice</h3>
+            <p className="text-sm text-gray-500">{client.billing_company || client.full_name}</p>
+          </div>
+          <div className="flex gap-2">
+            <button className="btn-primary text-sm py-1.5 flex items-center gap-1.5" onClick={handlePrint} disabled={lines.length===0}>
+              <Icon name="invoice" size={14}/> Save / Print PDF
+            </button>
+            <button onClick={onClose}><Icon name="x" size={18} className="text-gray-400"/></button>
+          </div>
+        </div>
+
+        {/* Add line items from activities */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-4">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Add Line Items from Activities</p>
+          {loading ? <p className="text-sm text-gray-400">Loading activities...</p> : (
+            <div className="space-y-3">
+              {tours.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-1.5">Tours</p>
+                  <div className="flex flex-wrap gap-2">
+                    {tours.map(t => (
+                      <button key={t.id} onClick={()=>addLine(t,'tour')}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-gold hover:text-navy font-medium transition-all">
+                        {t.name} · {sym}{parseFloat(t.price||0).toLocaleString('en-ZA',{minimumFractionDigits:2})}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {safaris.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-1.5">Safaris</p>
+                  <div className="flex flex-wrap gap-2">
+                    {safaris.map(s => (
+                      <button key={s.id} onClick={()=>addLine(s,'safari')}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-gold hover:text-navy font-medium transition-all">
+                        {s.name} · {sym}{parseFloat(s.price_per_person||0).toLocaleString('en-ZA',{minimumFractionDigits:2})} pp
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {tours.length===0 && safaris.length===0 && (
+                <p className="text-sm text-gray-400">No active tours or safaris found. Add them in Tours/Safaris tabs first.</p>
+              )}
+              <button onClick={()=>setLines(prev=>[...prev,{id:Date.now(),desc:'',qty:1,unit_price:0}])}
+                className="text-xs text-gold font-semibold hover:underline">+ Add custom line</button>
+            </div>
+          )}
+        </div>
+
+        {/* Line items table */}
+        {lines.length > 0 && (
+          <div className="mb-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-400 uppercase">
+                  <th className="text-left pb-2 font-semibold">Description</th>
+                  <th className="text-right pb-2 font-semibold w-16">Qty</th>
+                  <th className="text-right pb-2 font-semibold w-28">Unit Price</th>
+                  <th className="text-right pb-2 font-semibold w-28">Amount</th>
+                  <th className="w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map(l => (
+                  <tr key={l.id} className="border-t border-gray-100">
+                    <td className="py-2 pr-2">
+                      <input value={l.desc} onChange={e=>updateLine(l.id,'desc',e.target.value)}
+                        className="w-full text-sm border-0 bg-transparent p-0 focus:outline-none font-medium text-navy"/>
+                    </td>
+                    <td className="py-2 px-1">
+                      <input type="number" value={l.qty} min={1} onChange={e=>updateLine(l.id,'qty',e.target.value)}
+                        className="w-14 text-right text-sm border border-gray-200 rounded px-1 py-0.5"/>
+                    </td>
+                    <td className="py-2 px-1">
+                      <input type="number" value={l.unit_price} min={0} step={0.01} onChange={e=>updateLine(l.id,'unit_price',e.target.value)}
+                        className="w-24 text-right text-sm border border-gray-200 rounded px-1 py-0.5"/>
+                    </td>
+                    <td className="py-2 pl-2 text-right font-semibold text-navy">
+                      {sym}{(l.qty*l.unit_price).toLocaleString('en-ZA',{minimumFractionDigits:2})}
+                    </td>
+                    <td className="py-2 pl-1">
+                      <button onClick={()=>removeLine(l.id)} className="text-red-400 hover:text-red-600">
+                        <Icon name="x" size={14}/>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-navy">
+                  <td colSpan={3} className="pt-3 text-right font-black text-navy text-sm pr-2">TOTAL DUE</td>
+                  <td className="pt-3 text-right font-black text-lg" style={{color:'#D4A853'}}>
+                    {sym}{subtotal.toLocaleString('en-ZA',{minimumFractionDigits:2})}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {lines.length === 0 && (
+          <div className="text-center py-6 text-gray-400 text-sm">
+            Click an activity above or add a custom line to build the invoice
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ClientsPage() {
+  const { company, features, addons } = useAuth();
+  const [clients,    setClients]    = React.useState([]);
+  const [loading,    setLoading]    = React.useState(true);
+  const [showModal,  setShowModal]  = React.useState(false);
+  const [editItem,   setEditItem]   = React.useState(null);
+  const [invoiceFor, setInvoiceFor] = React.useState(null);
+  const [form,       setForm]       = React.useState({});
+  const [saving,     setSaving]     = React.useState(false);
+  const [showUpgrade,setShowUpgrade]= React.useState(false);
+
+  async function load() {
+    if (!company) return;
+    const { data } = await supabase.from('guests')
+      .select('*')
+      .eq('company_id', company.id)
+      .not('billing_company', 'is', null)
+      .order('full_name');
+    // Also grab all guests that are marked as clients (either have billing_company or explicit flag)
+    const { data: all } = await supabase.from('guests')
+      .select('*')
+      .eq('company_id', company.id)
+      .order('created_at', { ascending: false });
+    setClients(all || []);
+    setLoading(false);
+  }
+
+  React.useEffect(() => { load(); }, [company]);
+
+  function openCreate() {
+    setEditItem(null); setForm({}); setShowModal(true);
+  }
+  function openEdit(item) {
+    setEditItem(item);
+    const f = {};
+    ['full_name','email','phone','nationality','id_number','billing_company','billing_address',
+     'billing_city','billing_province','billing_postcode','billing_country','vat_number','notes']
+      .forEach(k => { f[k] = item[k] || ''; });
+    setForm(f); setShowModal(true);
+  }
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true);
+    const payload = { ...form, company_id: company.id };
+    const { error } = editItem
+      ? await supabase.from('guests').update(payload).eq('id', editItem.id)
+      : await supabase.from('guests').insert(payload);
+    if (error) toast(error.message, 'error');
+    else { toast(editItem ? 'Client updated' : 'Client added'); setShowModal(false); load(); }
+    setSaving(false);
+  }
+  async function handleDelete(id) {
+    if (!confirm('Remove this client?')) return;
+    await supabase.from('guests').delete().eq('id', id);
+    toast('Removed'); load();
+  }
+
+  const fields = [
+    { key:'full_name',        label:'Contact Name',    required:true,  placeholder:'John Dlamini' },
+    { key:'billing_company',  label:'Company / Org',   placeholder:'Ubizane Wildlife Reserve' },
+    { key:'email',            label:'Email',           type:'email',   placeholder:'accounts@client.co.za' },
+    { key:'phone',            label:'Phone',           placeholder:'+27 35 562 1020' },
+    { key:'vat_number',       label:'VAT Number',      placeholder:'4012345678' },
+    { key:'billing_address',  label:'Address',         placeholder:'P453 Main Road' },
+    { key:'billing_city',     label:'City',            placeholder:'Hluhluwe' },
+    { key:'billing_province', label:'Province/Region', placeholder:'KwaZulu-Natal' },
+    { key:'billing_postcode', label:'Postal Code',     placeholder:'3960' },
+    { key:'billing_country',  label:'Country',         placeholder:'South Africa' },
+    { key:'notes',            label:'Notes',           type:'textarea' },
+  ];
+
+  return (
+    <div>
+      <PageHeader
+        title="Clients"
+        subtitle={`${clients.length} client${clients.length===1?'':'s'}`}
+        action={<button className="btn-primary flex items-center gap-2" onClick={openCreate}><Icon name="plus" size={16}/>Add Client</button>}
+      />
+
+      {/* Info banner */}
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5 text-sm text-blue-700 flex items-start gap-3">
+        <Icon name="invoice" size={16} className="mt-0.5 flex-shrink-0"/>
+        <span>Clients are repeat-billing contacts you can invoice directly. They can also be selected when creating bookings. All guests you add here are available in the booking form.</span>
+      </div>
+
+      <div className="card">
+        {loading ? (
+          <div className="p-8 text-center text-gray-400">Loading...</div>
+        ) : clients.length === 0 ? (
+          <div className="p-12 text-center">
+            <Icon name="clients" size={40} className="mx-auto mb-3 text-gray-200"/>
+            <p className="text-gray-400 mb-1">No clients yet</p>
+            <p className="text-xs text-gray-300 mb-4">Add repeat-billing clients to invoice them directly</p>
+            <button className="btn-primary" onClick={openCreate}>Add First Client</button>
+          </div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Contact</th>
+                <th>VAT</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clients.map(c => (
+                <tr key={c.id}>
+                  <td><span className="font-semibold text-navy">{c.full_name}</span></td>
+                  <td><span className="text-gray-600">{c.billing_company || '—'}</span></td>
+                  <td>
+                    <div className="text-gray-600 text-sm">{c.email || c.phone || '—'}</div>
+                  </td>
+                  <td><span className="text-gray-500 text-sm">{c.vat_number || '—'}</span></td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="text-xs font-semibold px-2 py-1 rounded-lg border border-gold text-gold hover:bg-amber-50 flex items-center gap-1"
+                        onClick={()=>setInvoiceFor(c)}
+                        title="Create Invoice">
+                        <Icon name="invoice" size={12}/> Invoice
+                      </button>
+                      <button className="text-blue-500 hover:text-blue-700" onClick={()=>openEdit(c)}>
+                        <Icon name="edit" size={14}/>
+                      </button>
+                      <button className="text-red-400 hover:text-red-600" onClick={()=>handleDelete(c.id)}>
+                        <Icon name="trash" size={14}/>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={()=>setShowModal(false)}>
+          <div className="modal max-w-lg w-full" onClick={e=>e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-bold text-navy text-lg">{editItem ? 'Edit Client' : 'Add Client'}</h3>
+              <button onClick={()=>setShowModal(false)}><Icon name="x" size={18} className="text-gray-400"/></button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                {fields.map(f => (
+                  <div key={f.key} className={f.type==='textarea' ? 'col-span-2' : ''}>
+                    <label className="text-sm font-semibold text-gray-600 block mb-1">
+                      {f.label}{f.required && <span className="text-red-400 ml-0.5">*</span>}
+                    </label>
+                    {f.type === 'textarea'
+                      ? <textarea value={form[f.key]||''} onChange={e=>setForm({...form,[f.key]:e.target.value})}
+                          placeholder={f.placeholder} rows={2}/>
+                      : <input type={f.type||'text'} value={form[f.key]||''} required={f.required}
+                          onChange={e=>setForm({...form,[f.key]:e.target.value})}
+                          placeholder={f.placeholder}/>
+                    }
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="btn-primary flex-1" disabled={saving}>
+                  {saving ? 'Saving...' : editItem ? 'Save Changes' : 'Add Client'}
+                </button>
+                <button type="button" className="btn-secondary flex-1" onClick={()=>setShowModal(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Modal */}
+      {invoiceFor && <ClientInvoiceModal client={invoiceFor} onClose={()=>setInvoiceFor(null)}/>}
+
+      {showUpgrade && <UpgradeModal onClose={()=>setShowUpgrade(false)}/>}
+    </div>
+  );
+}
+
 
 // ══════════════════════════════════════════════
 //  CLIENTS MODULE
@@ -6311,7 +6727,7 @@ function AppShellWithAddons() {
   const pages = {
     dashboard: <DashboardPage/>, bookings: <BookingsPage/>, calendar: <CalendarPage/>,
     tours: <ToursPage/>, safaris: <SafarisPage/>, shuttles: <ShuttlesPage/>, charters: <ChartersPage/>, trails: <TrailsPage/>,
-    guests: <GuestsPage/>, guides: <GuidesPage/>, drivers: <DriversPage/>, vehicles: <VehiclesPage/>, schedules: <SchedulesPage/>,
+    guests: <GuestsPage/>, clients: <ClientsPage/>, guides: <GuidesPage/>, drivers: <DriversPage/>, vehicles: <VehiclesPage/>, schedules: <SchedulesPage/>,
     firearm: <FirearmRegisterPage/>, users: <UsersPage/>, billing: <BillingPage/>, settings: <SettingsPage/>, marketing: <MarketingPageEditor/>,
   };
 
