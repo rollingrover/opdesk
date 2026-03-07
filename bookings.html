@@ -4725,16 +4725,17 @@ function SACompanies({ onSelect }) {
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const { data } = await supabase
-      .from('companies')
-      .select('*, profiles(count)')
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.rpc('sa_get_all_companies');
+    if (error) { console.error('sa_get_all_companies error', error); }
     setCompanies(data||[]); setLoading(false);
   }
   useEffect(() => { load(); }, []);
 
   const filtered = companies.filter(c =>
-    !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase())
+    !search ||
+    c.name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.owner_email?.toLowerCase().includes(search.toLowerCase()) ||
+    c.email?.toLowerCase().includes(search.toLowerCase())
   );
   const tierColor = { free:'#6b7280', basic:'#3b82f6', standard:'#9333ea', premium:'#D4A853' };
   const mrr = companies.filter(c=>c.subscription_tier==='premium').length * 2499
@@ -4773,10 +4774,10 @@ function SACompanies({ onSelect }) {
             ) : filtered.map(c => (
               <tr key={c.id} style={{borderBottom:'1px solid #1a1a1a',cursor:'pointer'}} onClick={()=>onSelect(c)}>
                 <td style={{padding:'11px 14px',color:'white',fontWeight:600}}>{c.name}</td>
-                <td style={{padding:'11px 14px',color:'#9ca3af',fontSize:13}}>{c.email||'—'}</td>
+                <td style={{padding:'11px 14px',color:'#9ca3af',fontSize:13}}>{c.owner_email||c.email||'—'}</td>
                 <td style={{padding:'11px 14px'}}><span style={{background:tierColor[c.subscription_tier||'free']+'22',color:tierColor[c.subscription_tier||'free'],borderRadius:999,padding:'2px 10px',fontSize:12,fontWeight:700,textTransform:'capitalize'}}>{c.subscription_tier||'free'}</span></td>
                 <td style={{padding:'11px 14px',color:'#6b7280',fontSize:13}}>{c.created_at ? new Date(c.created_at).toLocaleDateString('en-ZA') : '—'}</td>
-                <td style={{padding:'11px 14px',color:'#9ca3af'}}>{c.profiles?.[0]?.count||'—'}</td>
+                <td style={{padding:'11px 14px',color:'#9ca3af'}}>{c.profile_count||'—'}</td>
                 <td style={{padding:'11px 14px'}}><span style={{color:'#3b82f6',fontSize:13,fontWeight:600}}>Manage →</span></td>
               </tr>
             ))}
@@ -4812,11 +4813,28 @@ function SACompanyDetail({ company, onBack, globalPricing }) {
   }
   useEffect(() => { load(); }, [co.id]);
 
+  const [upgradeExpiry, setUpgradeExpiry] = useState('');
+
   async function changeTier(tier) {
     setSaving(true);
-    await supabase.from('companies').update({ subscription_tier: tier }).eq('id', co.id);
-    setCo({...co, subscription_tier: tier});
-    toast('Tier updated to ' + tier);
+    // Build expiry: if expiry field filled use it, otherwise default free upgrades to 1 year
+    let expiresAt = null;
+    if (upgradeExpiry) {
+      expiresAt = new Date(upgradeExpiry).toISOString();
+    } else if (tier !== 'free') {
+      // Default: 1 year from now for manually granted upgrades
+      const d = new Date(); d.setFullYear(d.getFullYear() + 1);
+      expiresAt = d.toISOString();
+    }
+    const { error } = await supabase.rpc('sa_update_company', {
+      p_company_id: co.id,
+      p_tier: tier,
+      p_expires_at: expiresAt,
+    });
+    if (error) { toast('Error: ' + error.message, 'error'); setSaving(false); return; }
+    setCo({...co, subscription_tier: tier, subscription_expires_at: expiresAt});
+    toast('Tier updated to ' + tier + (expiresAt ? ' (expires ' + new Date(expiresAt).toLocaleDateString('en-ZA') + ')' : ''));
+    setUpgradeExpiry('');
     setSaving(false);
   }
 
@@ -4871,7 +4889,7 @@ function SACompanyDetail({ company, onBack, globalPricing }) {
             <span style={{...sl(tierColor[co.subscription_tier||'free']),fontSize:14,padding:'4px 14px',textTransform:'capitalize'}}>{co.subscription_tier||'free'}</span>
           </div>
         </div>
-        <div style={{marginTop:16,display:'flex',gap:8,flexWrap:'wrap'}}>
+        <div style={{marginTop:16,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
           <span style={{color:'#6b7280',fontSize:13,marginRight:6,alignSelf:'center'}}>Change tier:</span>
           {tiers.map(t => (
             <button key={t} onClick={()=>changeTier(t)} disabled={t===co.subscription_tier||saving}
@@ -4879,6 +4897,12 @@ function SACompanyDetail({ company, onBack, globalPricing }) {
               {t}
             </button>
           ))}
+        </div>
+        <div style={{marginTop:10,display:'flex',alignItems:'center',gap:10}}>
+          <span style={{color:'#6b7280',fontSize:12}}>Expires (optional — defaults to 1 yr for paid tiers):</span>
+          <input type="date" value={upgradeExpiry} onChange={e=>setUpgradeExpiry(e.target.value)}
+            style={{background:'#111',border:'1px solid #333',color:'white',borderRadius:6,padding:'5px 10px',fontSize:13}}/>
+          {co.subscription_expires_at && <span style={{color:'#f59e0b',fontSize:12}}>Current: {new Date(co.subscription_expires_at).toLocaleDateString('en-ZA')}</span>}
         </div>
       </div>
 
