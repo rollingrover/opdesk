@@ -5798,75 +5798,115 @@ function SuperAdminLogin({ onAuth }) {
 
 // ─── SA: COMPANIES LIST ───────────────────────
 function SACompanies({ onSelect }) {
-  const [companies, setCompanies] = useState([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [companies, setCompanies] = React.useState([]);
+  const [search, setSearch] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  const [filterTier, setFilterTier] = React.useState('all');
+  const [filterStatus, setFilterStatus] = React.useState('all');
 
   async function load() {
     const { data, error } = await supabase.rpc('sa_get_all_companies');
-    if (error) { console.error('sa_get_all_companies error', error); }
+    if (error) console.error('sa_get_all_companies error', error);
     setCompanies(data||[]); setLoading(false);
   }
-  useEffect(() => { load(); }, []);
+  React.useEffect(() => { load(); }, []);
 
-  const filtered = companies.filter(c =>
-    !search ||
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.owner_email?.toLowerCase().includes(search.toLowerCase()) ||
-    c.email?.toLowerCase().includes(search.toLowerCase())
-  );
   const tierColor = { free:'#6b7280', basic:'#3b82f6', standard:'#9333ea', premium:'#D4A853' };
-  const mrr = companies.filter(c=>c.subscription_tier==='premium').length * 2499
-    + companies.filter(c=>c.subscription_tier==='standard').length * (1499/12)
-    + companies.filter(c=>c.subscription_tier==='basic').length * (749/12);
+  const statusColor = { active:'#22c55e', suspended:'#ef4444', trial:'#f59e0b', churned:'#6b7280', vip:'#D4A853' };
+
+  const filtered = companies.filter(c => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || (c.name||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q);
+    const matchTier = filterTier === 'all' || c.subscription_tier === filterTier;
+    const matchStatus = filterStatus === 'all' || (c.account_status||'active') === filterStatus;
+    return matchSearch && matchTier && matchStatus;
+  });
+
+  // MRR calculation
+  const TIER_PRICES = { free:0, basic:349, standard:1099, premium:2499 };
+  const mrr = companies.reduce((s,c) => s + (TIER_PRICES[c.subscription_tier||'free']||0), 0);
+  const arr = mrr * 12;
+  const paying = companies.filter(c => c.subscription_tier !== 'free').length;
 
   return (
     <div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:24}}>
-        {[['Total Companies', companies.length, '#3b82f6'],
-          ['Premium', companies.filter(c=>c.subscription_tier==='premium').length, '#D4A853'],
-          ['Paid (any)', companies.filter(c=>c.subscription_tier!=='free').length, '#22c55e'],
-          ['Est. MRR', 'R'+Math.round(mrr).toLocaleString(), '#f59e0b'],
-        ].map(([l,v,col])=>(
-          <div key={l} style={{background:'#1a1a1a',borderRadius:12,padding:16,border:'1px solid #222'}}>
-            <div style={{color:'#6b7280',fontSize:11,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:6}}>{l}</div>
-            <div style={{color:col,fontSize:28,fontWeight:900}}>{v}</div>
+      {/* MRR Summary */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:24}}>
+        {[
+          ['Total Companies', companies.length, '#6b7280'],
+          ['Paying', paying, '#22c55e'],
+          ['MRR', `R${mrr.toLocaleString()}`, '#D4A853'],
+          ['ARR', `R${arr.toLocaleString()}`, '#9333ea'],
+        ].map(([l,v,c])=>(
+          <div key={l} style={{background:'#1a1a1a',borderRadius:12,padding:'16px 20px',border:'1px solid #222'}}>
+            <div style={{color:'#6b7280',fontSize:11,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:6}}>{l}</div>
+            <div style={{color:c,fontSize:24,fontWeight:900}}>{v}</div>
           </div>
         ))}
       </div>
-      <div style={{marginBottom:14}}>
-        <input style={{background:'#1a1a1a',border:'1px solid #333',color:'white',borderRadius:8,padding:'9px 14px',width:'100%',outline:'none',fontSize:14}} placeholder="Search companies..." value={search} onChange={e=>setSearch(e.target.value)}/>
+
+      {/* Filters */}
+      <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
+        <input
+          value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="Search company or email..."
+          style={{flex:1,minWidth:200,background:'#1a1a1a',border:'1px solid #333',color:'white',borderRadius:8,padding:'9px 14px',fontSize:13}}
+        />
+        <select value={filterTier} onChange={e=>setFilterTier(e.target.value)}
+          style={{background:'#1a1a1a',border:'1px solid #333',color:'#9ca3af',borderRadius:8,padding:'9px 12px',fontSize:13}}>
+          <option value="all">All Tiers</option>
+          {['free','basic','standard','premium'].map(t=><option key={t} value={t}>{t}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}
+          style={{background:'#1a1a1a',border:'1px solid #333',color:'#9ca3af',borderRadius:8,padding:'9px 12px',fontSize:13}}>
+          <option value="all">All Statuses</option>
+          {['active','trial','suspended','churned','vip'].map(s=><option key={s} value={s}>{s}</option>)}
+        </select>
+        <span style={{color:'#6b7280',fontSize:13}}>{filtered.length} result{filtered.length!==1?'s':''}</span>
       </div>
+
       <div style={{background:'#111',borderRadius:12,border:'1px solid #222',overflow:'hidden'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
           <thead>
             <tr style={{background:'#0d0d0d'}}>
-              {['Company','Email','Tier','Joined','Seats','Actions'].map(h=>(
+              {['Company','Tier','Status','Bookings','Users','Add-ons','Joined','Actions'].map(h=>(
                 <th key={h} style={{padding:'10px 14px',textAlign:'left',color:'#6b7280',fontSize:11,textTransform:'uppercase',letterSpacing:'0.05em',borderBottom:'1px solid #222'}}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{padding:24,textAlign:'center',color:'#6b7280'}}>Loading...</td></tr>
-            ) : filtered.map(c => (
-              <tr key={c.id} style={{borderBottom:'1px solid #1a1a1a',cursor:'pointer'}} onClick={()=>onSelect(c)}>
-                <td style={{padding:'11px 14px',color:'white',fontWeight:600}}>{c.name}</td>
-                <td style={{padding:'11px 14px',color:'#9ca3af',fontSize:13}}>{c.owner_email||c.email||'—'}</td>
-                <td style={{padding:'11px 14px'}}><span style={{background:tierColor[c.subscription_tier||'free']+'22',color:tierColor[c.subscription_tier||'free'],borderRadius:999,padding:'2px 10px',fontSize:12,fontWeight:700,textTransform:'capitalize'}}>{c.subscription_tier||'free'}</span></td>
-                <td style={{padding:'11px 14px',color:'#6b7280',fontSize:13}}>{c.created_at ? new Date(c.created_at).toLocaleDateString('en-ZA') : '—'}</td>
-                <td style={{padding:'11px 14px',color:'#9ca3af'}}>{c.profile_count||'—'}</td>
-                <td style={{padding:'11px 14px'}}><span style={{color:'#3b82f6',fontSize:13,fontWeight:600}}>Manage →</span></td>
-              </tr>
-            ))}
+              <tr><td colSpan={8} style={{padding:24,textAlign:'center',color:'#6b7280'}}>Loading...</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={8} style={{padding:24,textAlign:'center',color:'#6b7280'}}>No companies found</td></tr>
+            ) : filtered.map(c => {
+              const status = c.account_status || 'active';
+              return (
+                <tr key={c.id} style={{borderBottom:'1px solid #1a1a1a',cursor:'pointer'}} onClick={()=>onSelect(c)}>
+                  <td style={{padding:'11px 14px'}}>
+                    <div style={{color:'white',fontWeight:600}}>{c.name}</div>
+                    <div style={{color:'#6b7280',fontSize:12}}>{c.email||'—'} · {c.country||'—'}</div>
+                  </td>
+                  <td style={{padding:'11px 14px'}}>
+                    <span style={{background:tierColor[c.subscription_tier||'free']+'22',color:tierColor[c.subscription_tier||'free'],borderRadius:999,padding:'2px 10px',fontSize:12,fontWeight:700,textTransform:'capitalize'}}>{c.subscription_tier||'free'}</span>
+                  </td>
+                  <td style={{padding:'11px 14px'}}>
+                    <span style={{background:statusColor[status]+'22',color:statusColor[status],borderRadius:999,padding:'2px 10px',fontSize:12,fontWeight:700,textTransform:'capitalize'}}>{status}</span>
+                  </td>
+                  <td style={{padding:'11px 14px',color:'#9ca3af',fontWeight:600}}>{c.booking_count||0}</td>
+                  <td style={{padding:'11px 14px',color:'#9ca3af'}}>{c.user_count||0}</td>
+                  <td style={{padding:'11px 14px',color:'#9ca3af'}}>{c.addon_count||0}</td>
+                  <td style={{padding:'11px 14px',color:'#6b7280',fontSize:13}}>{c.created_at ? new Date(c.created_at).toLocaleDateString('en-ZA') : '—'}</td>
+                  <td style={{padding:'11px 14px'}}><span style={{color:'#3b82f6',fontSize:13,fontWeight:600}}>Manage →</span></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </div>
   );
 }
-
-// ─── SA: COMPANY DETAIL ───────────────────────
 function SACompanyDetail({ company, onBack, globalPricing }) {
   const [co, setCo] = useState(company);
   const [profiles, setProfiles] = useState([]);
@@ -5875,6 +5915,35 @@ function SACompanyDetail({ company, onBack, globalPricing }) {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('overview');
   const [addonForm, setAddonForm] = useState({ type:'vehicles', qty:1, price_override:null, note:'' });
+  const [adminNotes, setAdminNotes] = React.useState(company.admin_notes||'');
+  const [accountStatus, setAccountStatus] = React.useState(company.account_status||'active');
+  const [dbQuota, setDbQuota] = React.useState(String(company.db_quota_mb||200));
+  const [storageQuota, setStorageQuota] = React.useState(String(company.storage_quota_mb||100));
+  const [savingSettings, setSavingSettings] = React.useState(false);
+
+  async function saveSettings() {
+    setSavingSettings(true);
+    const { error } = await supabase.rpc('sa_update_company', {
+      p_company_id: co.id,
+      p_admin_notes: adminNotes,
+      p_account_status: accountStatus,
+      p_db_quota_mb: parseInt(dbQuota)||null,
+      p_storage_quota_mb: parseInt(storageQuota)||null,
+    });
+    if (error) { toast('Error: ' + error.message, 'error'); setSavingSettings(false); return; }
+    setCo({...co, admin_notes:adminNotes, account_status:accountStatus, db_quota_mb:parseInt(dbQuota), storage_quota_mb:parseInt(storageQuota)});
+    toast('Company settings saved');
+    setSavingSettings(false);
+  }
+
+  async function suspendCompany() {
+    if (!confirm(`${accountStatus==='suspended'?'Reactivate':'Suspend'} ${co.name}?`)) return;
+    const newStatus = accountStatus === 'suspended' ? 'active' : 'suspended';
+    setAccountStatus(newStatus);
+    await supabase.rpc('sa_update_company', { p_company_id: co.id, p_account_status: newStatus });
+    setCo({...co, account_status: newStatus});
+    toast(`Company ${newStatus === 'suspended' ? 'suspended' : 'reactivated'}`);
+  }
 
   const tiers = ['free','basic','standard','premium'];
   const tierColor = { free:'#6b7280', basic:'#3b82f6', standard:'#9333ea', premium:'#D4A853' };
@@ -5948,6 +6017,12 @@ function SACompanyDetail({ company, onBack, globalPricing }) {
     {key:'charters',label:'Extra Charter slot'},{key:'trails',label:'Extra Trail slot'},
     {key:'seats',label:'Extra User Seat'},{key:'firearm_register',label:'Firearm Register module'},
     {key:'schedules_module',label:'Schedules module'},{key:'white_label',label:'White-label branding'},
+    {key:'no_watermark',label:'Remove Watermark'},
+    {key:'client_list',label:'Client List & Invoicing'},
+    {key:'storage_10gb',label:'Storage +10 GB'},{key:'storage_50gb',label:'Storage +50 GB'},
+    {key:'storage_200gb',label:'Storage +200 GB'},
+    {key:'bandwidth_50gb',label:'Bandwidth +50 GB'},{key:'bandwidth_200gb',label:'Bandwidth +200 GB'},
+    {key:'bandwidth_1tb',label:'Bandwidth +1 TB'},
   ];
 
   const statusColor = { confirmed:'#22c55e', pending:'#eab308', cancelled:'#ef4444', completed:'#3b82f6' };
@@ -5985,7 +6060,7 @@ function SACompanyDetail({ company, onBack, globalPricing }) {
       </div>
 
       <div style={{display:'flex',gap:8,marginBottom:20}}>
-        {['overview','addons','bookings','users'].map(t=>(
+        {['overview','addons','bookings','users','settings'].map(t=>(
           <button key={t} onClick={()=>setTab(t)} style={{background:tab===t?'#D4A853':'#1a1a1a',color:tab===t?'#0F2540':'#9ca3af',border:'none',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontWeight:700,fontSize:13,textTransform:'capitalize'}}>{t}</button>
         ))}
       </div>
@@ -6065,6 +6140,73 @@ function SACompanyDetail({ company, onBack, globalPricing }) {
               </tr>
             ))}</tbody>
           </table>
+        </div>
+      )}
+
+      {tab==='settings' && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          {/* Account Status */}
+          <div style={{background:'#1a1a1a',borderRadius:12,padding:20,border:'1px solid #222'}}>
+            <h3 style={{color:'white',fontWeight:700,marginBottom:14,fontSize:15}}>Account Status</h3>
+            <div style={{marginBottom:14}}>
+              <label style={{color:'#6b7280',fontSize:12,display:'block',marginBottom:6}}>Status</label>
+              <select value={accountStatus} onChange={e=>setAccountStatus(e.target.value)}
+                style={{width:'100%',background:'#111',border:'1px solid #333',color:'white',borderRadius:8,padding:'9px 12px',fontSize:14}}>
+                {['active','trial','vip','churned','suspended'].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              </select>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{color:'#6b7280',fontSize:12,display:'block',marginBottom:6}}>Admin Notes (internal)</label>
+              <textarea value={adminNotes} onChange={e=>setAdminNotes(e.target.value)} rows={4}
+                placeholder="Internal notes — not visible to the company..."
+                style={{width:'100%',background:'#111',border:'1px solid #333',color:'white',borderRadius:8,padding:'9px 12px',fontSize:13,resize:'vertical',boxSizing:'border-box'}}/>
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={saveSettings} disabled={savingSettings}
+                style={{flex:1,background:'#D4A853',color:'#0F2540',fontWeight:700,border:'none',borderRadius:8,padding:'10px 0',cursor:'pointer',fontSize:14}}>
+                {savingSettings?'Saving...':'Save Settings'}
+              </button>
+              <button onClick={suspendCompany}
+                style={{background:accountStatus==='suspended'?'#22c55e22':'#dc262622',color:accountStatus==='suspended'?'#22c55e':'#ef4444',fontWeight:700,border:`1px solid ${accountStatus==='suspended'?'#22c55e':'#dc2626'}`,borderRadius:8,padding:'10px 16px',cursor:'pointer',fontSize:13}}>
+                {accountStatus==='suspended'?'Reactivate':'Suspend'}
+              </button>
+            </div>
+          </div>
+
+          {/* Quota Overrides */}
+          <div style={{background:'#1a1a1a',borderRadius:12,padding:20,border:'1px solid #222'}}>
+            <h3 style={{color:'white',fontWeight:700,marginBottom:4,fontSize:15}}>Quota Overrides</h3>
+            <p style={{color:'#6b7280',fontSize:12,marginBottom:14}}>Defaults set by tier — override per company if needed.</p>
+            <div style={{marginBottom:14}}>
+              <label style={{color:'#6b7280',fontSize:12,display:'block',marginBottom:6}}>Database quota (MB)</label>
+              <input type="number" value={dbQuota} onChange={e=>setDbQuota(e.target.value)} min={1}
+                style={{width:'100%',background:'#111',border:'1px solid #333',color:'white',borderRadius:8,padding:'9px 12px',fontSize:14,boxSizing:'border-box'}}/>
+              <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+                {[['Free',50],['Basic',200],['Std',1024],['Pro',5120],['10GB',10240]].map(([l,v])=>(
+                  <button key={l} onClick={()=>setDbQuota(String(v))}
+                    style={{background:'#222',color:'#9ca3af',border:'1px solid #333',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>{l} ({v<1024?v+'MB':(v/1024)+'GB'})</button>
+                ))}
+              </div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{color:'#6b7280',fontSize:12,display:'block',marginBottom:6}}>Storage quota (MB)</label>
+              <input type="number" value={storageQuota} onChange={e=>setStorageQuota(e.target.value)} min={1}
+                style={{width:'100%',background:'#111',border:'1px solid #333',color:'white',borderRadius:8,padding:'9px 12px',fontSize:14,boxSizing:'border-box'}}/>
+              <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+                {[['Free',10],['Basic',100],['Std',500],['Pro',2048],['10GB',10240]].map(([l,v])=>(
+                  <button key={l} onClick={()=>setStorageQuota(String(v))}
+                    style={{background:'#222',color:'#9ca3af',border:'1px solid #333',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>{l} ({v<1024?v+'MB':(v/1024)+'GB'})</button>
+                ))}
+              </div>
+            </div>
+            <div style={{background:'#111',borderRadius:8,padding:12,border:'1px solid #222'}}>
+              <div style={{color:'#6b7280',fontSize:12,marginBottom:8}}>Current usage</div>
+              <div style={{display:'flex',gap:16'}}>
+                <span style={{color:'#9ca3af',fontSize:13}}>DB quota: <strong style={{color:'white'}}>{co.db_quota_mb||200} MB</strong></span>
+                <span style={{color:'#9ca3af',fontSize:13,marginLeft:16}}>Storage quota: <strong style={{color:'white'}}>{co.storage_quota_mb||100} MB</strong></span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -6174,7 +6316,15 @@ function SAPricingEditor() {
             const e = addonEdits[p.id] || {};
             return (
               <tr key={p.id} style={{borderBottom:'1px solid #1a1a1a'}}>
-                <td style={{padding:'10px 12px',color:'white',fontWeight:600,textTransform:'capitalize'}}>{p.addon_key?.replace(/_/g,' ')}</td>
+                <td style={{padding:'10px 12px',color:'white',fontWeight:600,textTransform:'capitalize'}}>{({
+  vehicles:'Extra Vehicle Slot', guides:'Extra Guide Slot', drivers:'Extra Driver Slot',
+  shuttles:'Extra Shuttle Slot', safaris:'Extra Safari Listing', tours:'Extra Tour Listing',
+  charters:'Extra Charter Listing', trails:'Extra Trail Listing', seats:'Extra User Seat',
+  firearm_register:'Firearm Register', schedules_module:'Schedules Module',
+  white_label:'White-Label', client_list:'Client List & Billing', no_watermark:'Remove Watermark',
+  storage_10gb:'Storage +10 GB', storage_50gb:'Storage +50 GB', storage_200gb:'Storage +200 GB',
+  bandwidth_50gb:'Bandwidth +50 GB', bandwidth_200gb:'Bandwidth +200 GB', bandwidth_1tb:'Bandwidth +1 TB',
+})[p.addon_key] || p.addon_key?.replace(/_/g,' ')}</td>
                 <td style={{padding:'10px 12px'}}><input type="number" value={e.monthly_price ?? p.monthly_price} onChange={ev=>onAddonChange(p.id,'monthly_price',ev.target.value)} style={numInputStyle}/></td>
                 <td style={{padding:'10px 12px'}}><input type="number" value={e.annual_price ?? p.annual_price} onChange={ev=>onAddonChange(p.id,'annual_price',ev.target.value)} style={numInputStyle}/></td>
               </tr>
@@ -6853,9 +7003,13 @@ function AddonShop({ onClose }) {
     shuttles:'Extra Shuttle Slot', safaris:'Extra Safari Listing', tours:'Extra Tour Listing',
     charters:'Extra Charter Listing', trails:'Extra Trail Listing', seats:'Extra User Seat',
     firearm_register:'Firearm Register Module', schedules_module:'Schedules Module', white_label:'White-Label Branding',
-    client_list: 'Client List & Billing',
+    client_list: 'Client List & Billing', no_watermark: 'Remove Watermark',
+    storage_10gb:'Storage +10 GB', storage_50gb:'Storage +50 GB', storage_200gb:'Storage +200 GB',
+    bandwidth_50gb:'Bandwidth +50 GB', bandwidth_200gb:'Bandwidth +200 GB', bandwidth_1tb:'Bandwidth +1 TB',
   };
-  const ICONS = { vehicles:'vehicles', guides:'guides', drivers:'drivers', shuttles:'shuttles', safaris:'safaris', tours:'tours', charters:'charters', trails:'trails', seats:'users', firearm_register:'firearm', schedules_module:'schedules', white_label:'shield' , client_list:'clients'};
+  const ICONS = { vehicles:'vehicles', guides:'guides', drivers:'drivers', shuttles:'shuttles', safaris:'safaris', tours:'tours', charters:'charters', trails:'trails', seats:'users', firearm_register:'firearm', schedules_module:'schedules', white_label:'shield', client_list:'clients', no_watermark:'shield',
+    storage_10gb:'database', storage_50gb:'database', storage_200gb:'database',
+    bandwidth_50gb:'upload', bandwidth_200gb:'upload', bandwidth_1tb:'upload' };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
