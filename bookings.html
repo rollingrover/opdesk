@@ -6310,7 +6310,7 @@ function SACompanyDetail({ company, onBack, globalPricing }) {
             </div>
             <div style={{background:'#111',borderRadius:8,padding:12,border:'1px solid #222'}}>
               <div style={{color:'#6b7280',fontSize:12,marginBottom:8}}>Current usage</div>
-              <div style={{display:'flex',gap:16'}}>
+              <div style={{display:'flex',gap:16}}>
                 <span style={{color:'#9ca3af',fontSize:13}}>DB quota: <strong style={{color:'white'}}>{co.db_quota_mb||200} MB</strong></span>
                 <span style={{color:'#9ca3af',fontSize:13,marginLeft:16}}>Storage quota: <strong style={{color:'white'}}>{co.storage_quota_mb||100} MB</strong></span>
               </div>
@@ -7293,7 +7293,7 @@ function AddonShop({ onClose }) {
 // ─── URL-BASED ROUTER ─────────────────────────────
 function RootRouter() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(() => {
-    return window.location.search.includes('admin') || window.location.hash === '#admin';
+    return window.location.search.toLowerCase().includes('admin') || window.location.hash.toLowerCase() === '#admin';
   });
 
   // Persist affiliate referral handle to localStorage so it survives page navigation
@@ -7305,7 +7305,7 @@ function RootRouter() {
   // Listen for hash changes
   useEffect(() => {
     function onHash() {
-      setIsSuperAdmin(window.location.hash === '#admin' || window.location.search.includes('admin'));
+      setIsSuperAdmin(window.location.hash.toLowerCase() === '#admin' || window.location.search.toLowerCase().includes('admin'));
     }
     window.addEventListener('hashchange', onHash);
     window.addEventListener('popstate', onHash);
