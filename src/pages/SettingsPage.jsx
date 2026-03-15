@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
+import { verifyTOTP } from '../lib/totp.jsx';
 
 // ─── SETTINGS ────────────────────────────
 

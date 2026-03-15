@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // TOTP utilities
 // ─── TOTP UTILITIES ──────────────────────────────────────────────────────────
-async function verifyTOTP(secret, code) {
+export async function verifyTOTP(secret, code) {
   try {
     // Decode base32 secret
     const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
