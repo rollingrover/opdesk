@@ -4,8 +4,23 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/bookings",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/bookings/(.*)",
+      "destination": "/app.html"
+    },
+    {
       "source": "/operators/:slug",
       "destination": "/operators.html"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/bookings.html",
+      "destination": "/app.html",
+      "permanent": true
     }
   ],
   "headers": [
@@ -27,6 +42,10 @@
         {
           "key": "Referrer-Policy",
           "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=()"
         }
       ]
     }
