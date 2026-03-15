@@ -1,4 +1,69 @@
-// OpDesk constants
+import React from 'react';
+
+// ─── OpDesk Constants ──────────────────────────────────────────────────────────
+// Auto-extracted from bookings.html monolith during Vite migration
+
+export const TIERS = {
+  free:     { label: 'Free',     price: 0,    annual: 0,     color: 'gray' },
+  basic:    { label: 'Basic',    price: 449,  annual: 4490,  color: 'blue' },
+  standard: { label: 'Standard', price: 999,  annual: 9990,  color: 'purple' },
+  premium:  { label: 'Premium',  price: 2499, annual: 24990, color: 'gold' }
+};
+
+const TIER_LIMITS = {
+  free:     { bookings: 20, vehicles: 1, guides: 1, drivers: 1, shuttles: 1, safaris: 1, tours: 1, charters: 1, trails: 1, schedules: 1, seats: 1 },
+  basic:    { bookings: null, vehicles: 5, guides: 5, drivers: 3, shuttles: 5, safaris: 3, tours: 3, charters: 3, trails: 1, schedules: 3, seats: 2 },
+  standard: { bookings: null, vehicles: 10, guides: 10, drivers: 5, shuttles: 10, safaris: 5, tours: 5, charters: 5, trails: 3, schedules: null, seats: 5 },
+  premium:  { bookings: null, vehicles: null, guides: null, drivers: null, shuttles: null, safaris: null, tours: null, charters: null, trails: null, schedules: null, seats: null }
+};
+
+const TIER_FEATURES = {
+  free:     { watermark: true, logo: false, csvExport: false, autoBackup: false, firearmRegister: false, whiteLabel: false, clientList: false },
+  basic:    { watermark: false, logo: true, csvExport: false, autoBackup: false, firearmRegister: false, whiteLabel: false, clientList: false },
+  standard: { watermark: false, logo: true, csvExport: true, autoBackup: false, firearmRegister: false, whiteLabel: false, clientList: true },
+  premium:  { watermark: false, logo: true, csvExport: true, autoBackup: true, firearmRegister: true, whiteLabel: true, clientList: true }
+};
+export const CURRENCIES = [
+  { code:'ZAR', symbol:'R',    name:'South African Rand' },
+  { code:'USD', symbol:'$',    name:'US Dollar' },
+  { code:'EUR', symbol:'€',    name:'Euro' },
+  { code:'GBP', symbol:'£',    name:'British Pound' },
+  { code:'AUD', symbol:'A$',   name:'Australian Dollar' },
+  { code:'NZD', symbol:'NZ$',  name:'New Zealand Dollar' },
+  { code:'CAD', symbol:'CA$',  name:'Canadian Dollar' },
+  { code:'KES', symbol:'KSh',  name:'Kenyan Shilling' },
+  { code:'TZS', symbol:'TSh',  name:'Tanzanian Shilling' },
+  { code:'BWP', symbol:'P',    name:'Botswana Pula' },
+  { code:'NAD', symbol:'N$',   name:'Namibian Dollar' },
+  { code:'ZMW', symbol:'ZK',   name:'Zambian Kwacha' },
+  { code:'MWK', symbol:'MK',   name:'Malawian Kwacha' },
+  { code:'MZN', symbol:'MT',   name:'Mozambican Metical' },
+  { code:'MUR', symbol:'₨',    name:'Mauritian Rupee' },
+  { code:'ETB', symbol:'Br',   name:'Ethiopian Birr' },
+];
+
+export const LANGUAGES = [
+  { code:'en',    name:'English' },
+  { code:'af',    name:'Afrikaans' },
+  { code:'zu',    name:'Zulu (isiZulu)' },
+  { code:'xh',    name:'Xhosa (isiXhosa)' },
+  { code:'st',    name:'Sotho (Sesotho)' },
+  { code:'sw',    name:'Swahili (Kiswahili)' },
+  { code:'fr',    name:'French (Français)' },
+  { code:'pt',    name:'Portuguese (Português)' },
+  { code:'de',    name:'German (Deutsch)' },
+  { code:'es',    name:'Spanish (Español)' },
+  { code:'nl',    name:'Dutch (Nederlands)' },
+  { code:'it',    name:'Italian (Italiano)' },
+];
+
+export const COUNTRIES = [
+  'South Africa','Kenya','Tanzania','Botswana','Namibia','Zambia','Zimbabwe',
+  'Mozambique','Malawi','Mauritius','Seychelles','Rwanda','Uganda','Ethiopia',
+  'Ghana','Nigeria','Egypt','Morocco','Australia','New Zealand','United Kingdom',
+  'United States','Canada','Germany','France','Netherlands','Portugal','Spain',
+  'Italy','Other',
+];
 
 // ─── REGION CERTIFICATION CONFIG ────────────────────────────
 const COUNTRY_TO_REGION = {
@@ -272,8 +337,55 @@ function getCurrencySymbol(code) {
 }
 
 
-// ─── ICONS ───────────────────────────────
-const Icon = ({ name, size=18, className='' }) => {
+
+// ─── Hoisted local constants (were function-scoped in monolith) ────────────────
+export const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+export const CATS = ['Bug', 'Billing', 'Feature Request', 'Other'];
+
+export const LABELS = {
+    vehicles:'Extra Vehicle Slot', guides:'Extra Guide Slot', drivers:'Extra Driver Slot',
+    shuttles:'Extra Shuttle Slot', safaris:'Extra Safari Listing', tours:'Extra Tour Listing',
+    charters:'Extra Charter Listing', trails:'Extra Trail Listing', seats:'Extra User Seat',
+    firearm_register:'Firearm Register Module', schedules_module:'Schedules Module', white_label:'White-Label Branding',
+    client_list: 'Client List & Billing', no_watermark: 'Remove Watermark',
+    storage_10gb:'Storage +10 GB', storage_50gb:'Storage +50 GB', storage_200gb:'Storage +200 GB',
+    bandwidth_50gb:'Bandwidth +50 GB', bandwidth_200gb:'Bandwidth +200 GB', bandwidth_1tb:'Bandwidth +1 TB',
+  };
+
+export const ICONS = { vehicles:'vehicles', guides:'guides', drivers:'drivers', shuttles:'shuttles', safaris:'safaris', tours:'tours', charters:'charters', trails:'trails', seats:'users', firearm_register:'firearm', schedules_module:'schedules', white_label:'shield', client_list:'clients', no_watermark:'shield',
+    storage_10gb:'database', storage_50gb:'database', storage_200gb:'database',
+    bandwidth_50gb:'upload', bandwidth_200gb:'upload', bandwidth_1tb:'upload' };
+
+export const ADDON_TYPES = [
+    {key:'vehicles',label:'Extra Vehicle slot'},{key:'guides',label:'Extra Guide slot'},
+    {key:'drivers',label:'Extra Driver slot'},{key:'shuttles',label:'Extra Shuttle slot'},
+    {key:'safaris',label:'Extra Safari slot'},{key:'tours',label:'Extra Tour slot'},
+    {key:'charters',label:'Extra Charter slot'},{key:'trails',label:'Extra Trail slot'},
+    {key:'seats',label:'Extra User Seat'},{key:'firearm_register',label:'Firearm Register module'},
+    {key:'schedules_module',label:'Schedules module'},{key:'white_label',label:'White-label branding'},
+    {key:'no_watermark',label:'Remove Watermark'},
+    {key:'client_list',label:'Client List & Invoicing'},
+    {key:'storage_10gb',label:'Storage +10 GB'},{key:'storage_50gb',label:'Storage +50 GB'},
+    {key:'storage_200gb',label:'Storage +200 GB'},
+    {key:'bandwidth_50gb',label:'Bandwidth +50 GB'},{key:'bandwidth_200gb',label:'Bandwidth +200 GB'},
+    {key:'bandwidth_1tb',label:'Bandwidth +1 TB'},
+  ];
+
+
+// ─── Components ──────────────────────────────────────────────────────────
+export const Logo = ({size=32}) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+    <circle cx="50" cy="50" r="45" stroke="#D4A853" strokeWidth="3" fill="none"/>
+    <polygon points="50,10 55,45 50,50 45,45" fill="#D4A853"/>
+    <polygon points="50,90 55,55 50,50 45,55" fill="#D4A853" opacity="0.5"/>
+    <polygon points="10,50 45,45 50,50 45,55" fill="#D4A853" opacity="0.5"/>
+    <polygon points="90,50 55,55 50,50 55,45" fill="#D4A853"/>
+    <circle cx="50" cy="50" r="6" fill="#D4A853"/>
+  </svg>
+);
+
+export const Icon = ({ name, size=18, className='' }) => {
   const icons = {
     dashboard: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
     bookings: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>,
@@ -315,14 +427,3 @@ const Icon = ({ name, size=18, className='' }) => {
   };
   return icons[name] || <span className={className}>●</span>;
 };
-
-const Logo = ({size=32}) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-    <circle cx="50" cy="50" r="45" stroke="#D4A853" strokeWidth="3" fill="none"/>
-    <polygon points="50,10 55,45 50,50 45,45" fill="#D4A853"/>
-    <polygon points="50,90 55,55 50,50 45,55" fill="#D4A853" opacity="0.5"/>
-    <polygon points="10,50 45,45 50,50 45,55" fill="#D4A853" opacity="0.5"/>
-    <polygon points="90,50 55,55 50,50 55,45" fill="#D4A853"/>
-    <circle cx="50" cy="50" r="6" fill="#D4A853"/>
-  </svg>
-);

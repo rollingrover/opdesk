@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
-import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants';
+import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
 
 // ─── SIDEBAR ─────────────────────────────
 function Sidebar({ page, setPage, collapsed, setCollapsed }) {

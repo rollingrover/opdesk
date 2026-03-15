@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 // TOTP utilities
 // ─── TOTP UTILITIES ──────────────────────────────────────────────────────────
 async function verifyTOTP(secret, code) {

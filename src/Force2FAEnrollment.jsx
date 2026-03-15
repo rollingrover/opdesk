@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from './lib/supabase';
-import { verifyTOTP } from './lib/totp';
+import { verifyTOTP } from './lib/totp.jsx';
 
 // ─── FORCED 2FA ENROLLMENT (for Firearm Register users) ────────────────────
 function Force2FAEnrollment() {

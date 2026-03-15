@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants';
+import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
 
 // ─── ADD-ON PURCHASE MODAL ───────────────
 // Lets users buy N extra slots of any resource, directly from any limit-hit gate
