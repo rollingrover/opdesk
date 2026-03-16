@@ -21,7 +21,7 @@ VITE_SUPABASE_ANON_KEY=<your-anon-key>
 
 ### 3. In Vercel dashboard
 Add these environment variables to your Vercel project:
-- `VITE_SUPABASE_URL` = `https://tasxyiibrjrpnuemorpx.supabase.co`
+- `VITE_SUPABASE_URL` = your.supabase.co url`
 - `VITE_SUPABASE_ANON_KEY` = `<your-anon-key>`
 
 ### 4. Dev server
