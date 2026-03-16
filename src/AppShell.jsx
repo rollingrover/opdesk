@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from './lib/supabase';
 import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from './lib/constants.jsx';
+import { ClientsPage, TrailsPage, VehiclesPage, GuidesPage, DriversPage, SchedulesPage } from './pages/ModulePages.jsx';
 
 // ─── PageErrorBoundary ──────────────────────
 class PageErrorBoundary extends React.Component {

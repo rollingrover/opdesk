@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
 
 // ─── INVOICE ─────────────────────────────
-function InvoiceModal({ booking, onClose }) {
+export default function InvoiceModal({ booking, onClose }) {
   const { company, features, currencySymbol: sym, companyRegion } = useAuth();
   const invoiceRef = React.useRef(null);
   const invoiceNum = `INV-${booking.booking_ref}-${new Date().getFullYear()}`;
@@ -201,3 +201,5 @@ function InvoiceModal({ booking, onClose }) {
     </div>
   );
 }
+
+export { InvoiceModal as InvoicePage };

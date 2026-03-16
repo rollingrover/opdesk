@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
 
 // ─── REPORT A PROBLEM MODAL ──────────────────
-function ReportModal({ onClose }) {
+export default function ReportModal({ onClose }) {
   const CATS = ['Bug','Billing','Feature Request','Other'];
   const { company, profile } = useAuth();
   const [cat, setCat] = useState('Bug');
@@ -96,3 +96,5 @@ function ReportModal({ onClose }) {
 
 
 // ─── SUPERADMIN SUPPORT QUEUE ────────────────
+
+export { ReportModal as SASupportQueue };

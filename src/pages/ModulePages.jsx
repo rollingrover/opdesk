@@ -9,7 +9,7 @@ import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADD
 //  Standard+ included · Free/Basic = addon
 // ══════════════════════════════════════════════
 
-function ClientInvoiceModal({ client, onClose }) {
+export function ClientInvoiceModal({ client, onClose }) {
   const { company, features, currencySymbol: sym } = useAuth();
   const [view,       setView]     = React.useState('list');  // 'list' | 'create' | 'view'
   const [invoices,   setInvoices] = React.useState([]);
@@ -685,7 +685,7 @@ function ClientInvoiceModal({ client, onClose }) {
   );
 }
 
-function ClientsPage() {
+export function ClientsPage() {
   const { company, features, addons } = useAuth();
   const [clients,    setClients]    = React.useState([]);
   const [loading,    setLoading]    = React.useState(true);
@@ -873,7 +873,7 @@ function ClientsPage() {
 // ══════════════════════════════════════════════
 
 
-function TrailsPage() {
+export function TrailsPage() {
   const { company, limits } = useAuth();
   const [items, setItems]     = useState([]);
   const [guides, setGuides]   = useState([]);
@@ -1025,7 +1025,7 @@ function TrailsPage() {
 }
 
 
-function VehiclesPage() {
+export function VehiclesPage() {
   const { company, limits } = useAuth();
   const [items,  setItems]  = useState([]);
   const [loading,setLoading]= useState(true);
@@ -1240,7 +1240,7 @@ function VehiclesPage() {
 }
 
 
-function FileUploadBtn({ label, accept, bucket, path, currentUrl, onUploaded, small }) {
+export function FileUploadBtn({ label, accept, bucket, path, currentUrl, onUploaded, small }) {
   const [uploading, setUploading] = useState(false);
   async function handleChange(e) {
     const file = e.target.files[0]; if (!file) return;
@@ -1271,7 +1271,7 @@ function FileUploadBtn({ label, accept, bucket, path, currentUrl, onUploaded, sm
 
 // ─── SHARED: CERT ROW ────────────────────
 // Renders a checkbox + optional level text + expiry date for one certification
-function CertRow({ label, checked, onToggle, level, onLevel, levelPlaceholder, expiry, onExpiry, showLevel }) {
+export function CertRow({ label, checked, onToggle, level, onLevel, levelPlaceholder, expiry, onExpiry, showLevel }) {
   return (
     <div className="border border-gray-100 rounded-lg p-3 mb-2">
       <label className="flex items-center gap-2 cursor-pointer mb-2">
@@ -1297,7 +1297,7 @@ function CertRow({ label, checked, onToggle, level, onLevel, levelPlaceholder, e
 }
 
 // ─── GUIDE FORM PAGE ─────────────────────
-function GuidesPage() {
+export function GuidesPage() {
   const { company, limits, companyRegion } = useAuth();
   const [items,  setItems]  = useState([]);
   const [loading,setLoading]= useState(true);
@@ -1604,7 +1604,7 @@ function GuidesPage() {
 }
 
 // ─── DRIVER FORM PAGE ────────────────────
-function DriversPage() {
+export function DriversPage() {
   const { company, limits, companyRegion } = useAuth();
   const [items,  setItems]  = useState([]);
   const [loading,setLoading]= useState(true);
@@ -1876,7 +1876,7 @@ function DriversPage() {
 }
 
 
-function SchedulesPage() {
+export function SchedulesPage() {
   const { company, limits } = useAuth();
   const [items,   setItems]   = useState([]);
   const [guides,  setGuides]  = useState([]);
