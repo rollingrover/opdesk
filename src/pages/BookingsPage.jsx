@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
+import { useAuth } from '../context/AuthContext';
+import { TIERS, TIER_LIMITS, TIER_FEATURES, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS_MAP, LABELS, ADDON_TYPES, getCurrencySymbol, getCompanyRegion, Icon } from '../lib/constants.jsx';
+import PageHeader from '../components/PageHeader.jsx';
+import CrudPage from './CrudPage.jsx';
 
 // ─── BOOKINGS ────────────────────────────
 
@@ -62,6 +65,7 @@ function BookingsPage() {
   const [vehicles, setVehicles] = useState([]);
   const [guides,   setGuides]   = useState([]);
   const [drivers,  setDrivers]  = useState([]);
+  const [clientList, setClientList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editB, setEditB] = useState(null);
@@ -73,16 +77,18 @@ function BookingsPage() {
   const bookingLimit = limits.bookings;
 
   async function load() {
-    const [bRes, vRes, gRes, dRes] = await Promise.all([
+    const [bRes, vRes, gRes, dRes, cRes] = await Promise.all([
       supabase.from('bookings').select('*, vehicles(make,model,registration), guides(full_name), drivers(full_name)').eq('company_id', company.id).order('created_at', {ascending:false}),
       supabase.from('vehicles').select('id,make,model,registration').eq('company_id', company.id).eq('status','active').order('make'),
       supabase.from('guides').select('id,full_name').eq('company_id', company.id).eq('status','active').order('full_name'),
       supabase.from('drivers').select('id,full_name').eq('company_id', company.id).eq('status','active').order('full_name'),
+      supabase.from('guests').select('id,full_name,email').eq('company_id', company.id).order('full_name'),
     ]);
     setBookings(bRes.data||[]);
     setVehicles(vRes.data||[]);
     setGuides(gRes.data||[]);
     setDrivers(dRes.data||[]);
+    setClientList(cRes.data||[]);
     setLoading(false);
   }
   useEffect(() => { if (company) load(); }, [company]);
@@ -272,5 +278,7 @@ function BookingsPage() {
 }
 
 
+
+export { ToursPage, SafarisPage, ShuttlesPage, ChartersPage };
 
 export default BookingsPage;

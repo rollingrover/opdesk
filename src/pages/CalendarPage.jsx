@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
+import { useAuth } from '../context/AuthContext';
+import { TIERS, TIER_LIMITS, TIER_FEATURES, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS_MAP, LABELS, ADDON_TYPES, getCurrencySymbol, getCompanyRegion, Icon } from '../lib/constants.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 // ─── CALENDAR ────────────────────────────
 function CalendarPage() {
@@ -37,8 +39,9 @@ function CalendarPage() {
 
   function handleDayClick(day) {
     if (bookingLimit !== null && bookings.length >= bookingLimit) { toast('Booking limit reached — upgrade to add more','error'); return; }
-    const date = new Date(cur.getFullYear(), cur.getMonth(), day);
-    const iso  = date.toISOString().split('T')[0];
+    const y = cur.getFullYear();
+    const m = cur.getMonth();
+    const iso = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     setNewBookingDate(iso);
     setForm({ status:'pending', activity_type:'safari', pax:1, total_amount:0, start_date:iso, vehicle_id:'', guide_id:'', driver_id:'' });
     setShowBookingModal(true);

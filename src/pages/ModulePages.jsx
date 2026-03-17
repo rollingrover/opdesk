@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
+import { useAuth } from '../context/AuthContext';
+import { TIERS, TIER_LIMITS, REGION_CERTS, TIER_FEATURES, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS_MAP, LABELS, ADDON_TYPES, getCurrencySymbol, getCompanyRegion, Icon } from '../lib/constants.jsx';
+import PageHeader from '../components/PageHeader.jsx';
+import CrudPage from './CrudPage.jsx';
 
 // ─── MODULE PAGES ────────────────────────
 
@@ -2061,3 +2064,63 @@ export function SchedulesPage() {
     </div>
   );
 }
+
+// Re-exports for pages
+export { BillingPage } from './BillingPage.jsx';
+export { default as DashboardPage } from './DashboardPage.jsx';
+export { default as BookingsPage } from './BookingsPage.jsx';
+export { default as CalendarPage } from './CalendarPage.jsx';
+export { default as SettingsPage } from './SettingsPage.jsx';
+export { default as UsersPage } from './UsersPage.jsx';
+export { default as FirearmRegisterPage } from './FirearmRegisterPage.jsx';
+export { default as MarketingPageEditor } from './MarketingPageEditor.jsx';
+
+// Placeholder pages
+export function ToursPage() { return <CrudPage title="Tours" icon="tours" table="tours" resourceKey="tours" fields={[
+  { key:'name', label:'Tour Name', required:true, primary:true, placeholder:'Zululand Cultural Tour' },
+  { key:'duration_hours', label:'Duration (hrs)', type:'number', placeholder:'6' },
+  { key:'price', label:'Price (R)', type:'number', placeholder:'750' },
+  { key:'max_pax', label:'Max Guests', type:'number', placeholder:'12' },
+  { key:'meeting_point', label:'Meeting Point', placeholder:'Durban Beach Front' },
+  { key:'status', label:'Status', type:'select', options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
+]}/>; }
+export function SafarisPage() { return <CrudPage title="Safaris" icon="safaris" table="safaris" resourceKey="safaris" fields={[
+  { key:'name', label:'Safari Name', required:true, primary:true, placeholder:'Big 5 Safari' },
+  { key:'park', label:'Park/Reserve', placeholder:'Hluhluwe-iMfolozi' },
+  { key:'duration_days', label:'Duration (hrs)', type:'number', placeholder:'3' },
+  { key:'price_per_person', label:'Price/Person (R)', type:'number', placeholder:'3500' },
+  { key:'max_pax', label:'Max Guests', type:'number', placeholder:'8' },
+  { key:'status', label:'Status', type:'select', options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
+]}/>; }
+export function ShuttlesPage() { return <CrudPage title="Shuttles" icon="shuttles" table="shuttles" resourceKey="shuttles" fields={[
+  { key:'name', label:'Route Name', required:true, primary:true, placeholder:'Durban Airport Shuttle' },
+  { key:'from_location', label:'From', placeholder:'King Shaka Airport' },
+  { key:'to_location', label:'To', placeholder:'Durban CBD' },
+  { key:'price', label:'Price (R)', type:'number', placeholder:'350' },
+  { key:'vehicle_type', label:'Vehicle', placeholder:'Toyota Quantum' },
+  { key:'status', label:'Status', type:'select', options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
+]}/>; }
+export function ChartersPage() { return <CrudPage title="Charters" icon="charters" table="charters" resourceKey="charters" fields={[
+  { key:'name', label:'Charter Name', required:true, primary:true, placeholder:'Deep Sea Fishing Charter' },
+  { key:'charter_type', label:'Type', type:'select', options:['road','boat','deep_sea_fishing','yacht','light_aircraft','helicopter','other'] },
+  { key:'duration_hours', label:'Duration (hrs)', type:'number', placeholder:'8' },
+  { key:'price', label:'Price (R)', type:'number', placeholder:'4500' },
+  { key:'capacity', label:'Capacity', type:'number', placeholder:'10' },
+  { key:'departure_point', label:'Departure', placeholder:'Durban Harbour' },
+  { key:'status', label:'Status', type:'select', options:['active','inactive'], badge:v=>v==='active'?'badge-green':'badge-gray' },
+]}/>; }
+export function GuestsPage() { return <CrudPage title="Guests" icon="guests" table="guests" resourceKey="guests" fields={[
+  { key:'full_name',        label:'Name',            required:true, primary:true, placeholder:'John Dlamini' },
+  { key:'email',            label:'Email',           type:'email',  placeholder:'guest@email.com' },
+  { key:'phone',            label:'Phone',           placeholder:'+27 82 000 0000' },
+  { key:'nationality',      label:'Nationality',     placeholder:'South African' },
+  { key:'id_number',        label:'ID/Passport',     placeholder:'Identity number' },
+  { key:'billing_company',  label:'Billing Company', placeholder:'ABC Tours (Pty) Ltd', display:false },
+  { key:'billing_address',  label:'Billing Address', placeholder:'123 Main Street',     display:false },
+  { key:'billing_city',     label:'City',            placeholder:'Durban',              display:false },
+  { key:'billing_province', label:'Province',        placeholder:'KwaZulu-Natal',       display:false },
+  { key:'billing_postcode', label:'Postal Code',     placeholder:'4001',                display:false },
+  { key:'billing_country',  label:'Country',         placeholder:'South Africa',        display:false },
+  { key:'vat_number',       label:'VAT Number',      placeholder:'4012345678',          display:false },
+  { key:'notes',            label:'Notes',           type:'textarea',                   display:false },
+]}/>; }

@@ -1,7 +1,6 @@
 import React from 'react';
 
 // ─── OpDesk Constants ──────────────────────────────────────────────────────────
-// Auto-extracted from bookings.html monolith during Vite migration
 
 export const TIERS = {
   free:     { label: 'Free',     price: 0,    annual: 0,     color: 'gray' },
@@ -10,19 +9,27 @@ export const TIERS = {
   premium:  { label: 'Premium',  price: 2499, annual: 24990, color: 'gold' }
 };
 
-const TIER_LIMITS = {
+export const TIER_LIMITS = {
   free:     { bookings: 20, vehicles: 1, guides: 1, drivers: 1, shuttles: 1, safaris: 1, tours: 1, charters: 1, trails: 1, schedules: 1, seats: 1 },
   basic:    { bookings: null, vehicles: 5, guides: 5, drivers: 3, shuttles: 5, safaris: 3, tours: 3, charters: 3, trails: 1, schedules: 3, seats: 2 },
   standard: { bookings: null, vehicles: 10, guides: 10, drivers: 5, shuttles: 10, safaris: 5, tours: 5, charters: 5, trails: 3, schedules: null, seats: 5 },
   premium:  { bookings: null, vehicles: null, guides: null, drivers: null, shuttles: null, safaris: null, tours: null, charters: null, trails: null, schedules: null, seats: null }
 };
 
-const TIER_FEATURES = {
+export const TIER_FEATURES = {
   free:     { watermark: true, logo: false, csvExport: false, autoBackup: false, firearmRegister: false, whiteLabel: false, clientList: false },
   basic:    { watermark: false, logo: true, csvExport: false, autoBackup: false, firearmRegister: false, whiteLabel: false, clientList: false },
   standard: { watermark: false, logo: true, csvExport: true, autoBackup: false, firearmRegister: false, whiteLabel: false, clientList: true },
   premium:  { watermark: false, logo: true, csvExport: true, autoBackup: true, firearmRegister: true, whiteLabel: true, clientList: true }
 };
+
+export const ADDON_DEFAULT_PRICES = {
+  vehicles: 99, guides: 99, drivers: 99, shuttles: 99,
+  safaris: 99, tours: 99, charters: 99, trails: 149,
+  seats: 79, schedules: 199, firearm_register: 299, white_label: 499,
+  no_watermark: 49,
+};
+
 export const CURRENCIES = [
   { code:'ZAR', symbol:'R',    name:'South African Rand' },
   { code:'USD', symbol:'$',    name:'US Dollar' },
@@ -65,16 +72,56 @@ export const COUNTRIES = [
   'Italy','Other',
 ];
 
+export const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+export const CATS = ['Bug', 'Billing', 'Feature Request', 'Other'];
+
+export const LABELS = {
+    vehicles:'Extra Vehicle Slot', guides:'Extra Guide Slot', drivers:'Extra Driver Slot',
+    shuttles:'Extra Shuttle Slot', safaris:'Extra Safari Listing', tours:'Extra Tour Listing',
+    charters:'Extra Charter Listing', trails:'Extra Trail Listing', seats:'Extra User Seat',
+    firearm_register:'Firearm Register Module', schedules_module:'Schedules Module', white_label:'White-Label Branding',
+    client_list: 'Client List & Billing', no_watermark: 'Remove Watermark',
+    storage_10gb:'Storage +10 GB', storage_50gb:'Storage +50 GB', storage_200gb:'Storage +200 GB',
+    bandwidth_50gb:'Bandwidth +50 GB', bandwidth_200gb:'Bandwidth +200 GB', bandwidth_1tb:'Bandwidth +1 TB',
+  };
+
+export const ICONS_MAP = { 
+  vehicles:'vehicles', guides:'guides', drivers:'drivers', shuttles:'shuttles', 
+  safaris:'safaris', tours:'tours', charters:'charters', trails:'trails', 
+  seats:'users', firearm_register:'firearm', schedules_module:'schedules', 
+  white_label:'shield', client_list:'clients', no_watermark:'shield',
+  storage_10gb:'database', storage_50gb:'database', storage_200gb:'database',
+  bandwidth_50gb:'upload', bandwidth_200gb:'upload', bandwidth_1tb:'upload' 
+};
+
+export const ADDON_TYPES = [
+    {key:'vehicles',label:'Extra Vehicle slot'},{key:'guides',label:'Extra Guide slot'},
+    {key:'drivers',label:'Extra Driver slot'},{key:'shuttles',label:'Extra Shuttle slot'},
+    {key:'safaris',label:'Extra Safari slot'},{key:'tours',label:'Extra Tour slot'},
+    {key:'charters',label:'Extra Charter slot'},{key:'trails',label:'Extra Trail slot'},
+    {key:'seats',label:'Extra User Seat'},{key:'firearm_register',label:'Firearm Register module'},
+    {key:'schedules_module',label:'Schedules module'},{key:'white_label',label:'White-label branding'},
+    {key:'no_watermark',label:'Remove Watermark'},
+    {key:'client_list',label:'Client List & Invoicing'},
+    {key:'storage_10gb',label:'Storage +10 GB'},{key:'storage_50gb',label:'Storage +50 GB'},
+    {key:'storage_200gb',label:'Storage +200 GB'},
+    {key:'bandwidth_50gb',label:'Bandwidth +50 GB'},{key:'bandwidth_200gb',label:'Bandwidth +200 GB'},
+    {key:'bandwidth_1tb',label:'Bandwidth +1 TB'},
+  ];
+
 // ─── REGION CERTIFICATION CONFIG ────────────────────────────
 const COUNTRY_TO_REGION = {
   'South Africa':'south_africa','Botswana':'botswana','Zimbabwe':'zimbabwe',
   'Zambia':'zambia','Namibia':'namibia','Mozambique':'mozambique',
   'Kenya':'kenya','Tanzania':'tanzania','Uganda':'uganda','Rwanda':'rwanda',
 };
-function getCompanyRegion(country) {
+
+export function getCompanyRegion(country) {
   return COUNTRY_TO_REGION[country] || 'south_africa';
 }
-const REGION_CERTS = {
+
+export const REGION_CERTS = {
   south_africa: {
     label: 'Southern Africa (South Africa)',
     guide: [
@@ -330,48 +377,10 @@ const REGION_CERTS = {
     ],
   },
 };
-// ─────────────────────────────────────────────────────────────
 
-function getCurrencySymbol(code) {
+export function getCurrencySymbol(code) {
   return (CURRENCIES.find(c => c.code === (code||'ZAR')) || CURRENCIES[0]).symbol;
 }
-
-
-
-// ─── Hoisted local constants (were function-scoped in monolith) ────────────────
-export const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-
-export const CATS = ['Bug', 'Billing', 'Feature Request', 'Other'];
-
-export const LABELS = {
-    vehicles:'Extra Vehicle Slot', guides:'Extra Guide Slot', drivers:'Extra Driver Slot',
-    shuttles:'Extra Shuttle Slot', safaris:'Extra Safari Listing', tours:'Extra Tour Listing',
-    charters:'Extra Charter Listing', trails:'Extra Trail Listing', seats:'Extra User Seat',
-    firearm_register:'Firearm Register Module', schedules_module:'Schedules Module', white_label:'White-Label Branding',
-    client_list: 'Client List & Billing', no_watermark: 'Remove Watermark',
-    storage_10gb:'Storage +10 GB', storage_50gb:'Storage +50 GB', storage_200gb:'Storage +200 GB',
-    bandwidth_50gb:'Bandwidth +50 GB', bandwidth_200gb:'Bandwidth +200 GB', bandwidth_1tb:'Bandwidth +1 TB',
-  };
-
-export const ICONS = { vehicles:'vehicles', guides:'guides', drivers:'drivers', shuttles:'shuttles', safaris:'safaris', tours:'tours', charters:'charters', trails:'trails', seats:'users', firearm_register:'firearm', schedules_module:'schedules', white_label:'shield', client_list:'clients', no_watermark:'shield',
-    storage_10gb:'database', storage_50gb:'database', storage_200gb:'database',
-    bandwidth_50gb:'upload', bandwidth_200gb:'upload', bandwidth_1tb:'upload' };
-
-export const ADDON_TYPES = [
-    {key:'vehicles',label:'Extra Vehicle slot'},{key:'guides',label:'Extra Guide slot'},
-    {key:'drivers',label:'Extra Driver slot'},{key:'shuttles',label:'Extra Shuttle slot'},
-    {key:'safaris',label:'Extra Safari slot'},{key:'tours',label:'Extra Tour slot'},
-    {key:'charters',label:'Extra Charter slot'},{key:'trails',label:'Extra Trail slot'},
-    {key:'seats',label:'Extra User Seat'},{key:'firearm_register',label:'Firearm Register module'},
-    {key:'schedules_module',label:'Schedules module'},{key:'white_label',label:'White-label branding'},
-    {key:'no_watermark',label:'Remove Watermark'},
-    {key:'client_list',label:'Client List & Invoicing'},
-    {key:'storage_10gb',label:'Storage +10 GB'},{key:'storage_50gb',label:'Storage +50 GB'},
-    {key:'storage_200gb',label:'Storage +200 GB'},
-    {key:'bandwidth_50gb',label:'Bandwidth +50 GB'},{key:'bandwidth_200gb',label:'Bandwidth +200 GB'},
-    {key:'bandwidth_1tb',label:'Bandwidth +1 TB'},
-  ];
-
 
 // ─── Components ──────────────────────────────────────────────────────────
 export const Logo = ({size=32}) => (
@@ -403,7 +412,7 @@ export const Icon = ({ name, size=18, className='' }) => {
     schedules: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
     firearm: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 12h14l2-3h2v6h-2l-2-3H3z"/><path d="M7 12v4l2 1h2"/><path d="M3 10v4"/></svg>,
     settings: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
-  marketing: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h18v4H3z"/><path d="M3 10h12v4H3z"/><path d="M3 17h8v4H3z"/><circle cx="18" cy="19" r="3"/><path d="M18 16v3l2 1"/></svg>,
+    marketing: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h18v4H3z"/><path d="M3 10h12v4H3z"/><path d="M3 17h8v4H3z"/><circle cx="18" cy="19" r="3"/><path d="M18 16v3l2 1"/></svg>,
     billing: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>,
     users: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>,
     logout: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
@@ -424,6 +433,7 @@ export const Icon = ({ name, size=18, className='' }) => {
     eye: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
     eyeOff: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22"/></svg>,
     info: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+    menu: <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
   };
   return icons[name] || <span className={className}>●</span>;
 };

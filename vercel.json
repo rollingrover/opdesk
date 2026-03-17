@@ -4,23 +4,8 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/bookings",
-      "destination": "/app.html"
-    },
-    {
-      "source": "/bookings/(.*)",
-      "destination": "/app.html"
-    },
-    {
-      "source": "/operators/:slug",
-      "destination": "/operators.html"
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/bookings.html",
-      "destination": "/app.html",
-      "permanent": true
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [

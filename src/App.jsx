@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import './App.css'; // Create this file with all your CSS
+import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { supabase } from './lib/supabase.js';
+import './App.css';
+import Bookings from './bookings';
+import Admin from './admin';
+import OperatorProfile from './OperatorProfile';
+import Force2FAEnrollment from './pages/Force2FAEnrollment';
 
-function App() {
+// Landing page component
+function LandingPage() {
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [pricing, setPricing] = useState({
     basic: { monthly: 349, annual: 3490 },
@@ -10,34 +17,27 @@ function App() {
   });
 
   useEffect(() => {
-    // Handle ?admin redirect
-    if (window.location.search.includes('admin')) {
-      window.location.replace('./bookings.html' + window.location.search);
-    }
-
-    // Handle affiliate ref
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
     if (ref && /^[a-z0-9-]+$/i.test(ref)) {
       localStorage.setItem('opdesk_ref', ref);
     }
-
-    // Load pricing from Supabase
     loadPricing();
   }, []);
 
   const loadPricing = async () => {
     try {
-      const SUPABASE_URL = 'https://tasxyiibrjrpnuemorpx.supabase.co';
-      const SUPABASE_KEY = 'sb_publishable_i3qA3belPYxUsAD2AnlhIw_7_gAulLT';
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
       const { data: tiers, error } = await supabase
         .from('tier_pricing')
-        .select('tier,label,monthly_price,annual_price');
+        .select('tier, monthly_price, annual_price')
+        .order('tier');
 
-      if (!error && tiers) {
+      if (error) {
+        console.warn('Using default pricing');
+        return;
+      }
+
+      if (tiers && tiers.length > 0) {
         const newPricing = { ...pricing };
         tiers.forEach(({ tier, monthly_price, annual_price }) => {
           const key = tier.toLowerCase();
@@ -51,11 +51,13 @@ function App() {
         setPricing(newPricing);
       }
     } catch (e) {
-      console.warn('OpDesk: could not load live pricing', e);
+      // Silent fail
     }
   };
 
   const formatPrice = (tier) => {
+    if (!pricing[tier]) return { price: 'R0', sub: '' };
+    
     if (billingCycle === 'annual') {
       const annual = pricing[tier]?.annual || 0;
       const monthly = Math.round(annual / 12);
@@ -116,9 +118,8 @@ function App() {
 
   return (
     <>
-      {/* NAV */}
       <nav>
-        <a className="nav-brand" href="#">
+        <Link to="/" className="nav-brand">
           <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
             <circle cx="50" cy="50" r="45" stroke="#D4A853" strokeWidth="3" fill="none"/>
             <polygon points="50,10 55,45 50,50 45,45" fill="#D4A853"/>
@@ -131,22 +132,21 @@ function App() {
             <div className="nav-brand-name">OpDesk</div>
             <div className="nav-brand-tag">Operator's Command Centre</div>
           </div>
-        </a>
+        </Link>
         <div className="nav-links">
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
           <a href="#industries">Industries</a>
-          <a href="./bookings.html" className="nav-cta">Sign In →</a>
+          <Link to="/bookings" className="nav-cta">Sign In →</Link>
         </div>
       </nav>
 
-      {/* HERO */}
-      <section className="hero">
+      <section className="hero" style={{ padding: '100px 5% 80px', width: '100%' }}>
         <div className="hero-badge">Built for Travel Operators Worldwide</div>
         <h1>Run Your Entire<br /><span>Travel Operation</span><br />From One Place</h1>
         <p className="hero-sub">Bookings, guides, vehicles, drivers, certificates, invoices and schedules — all in one clean platform. Multi-currency. 12 languages. No per-booking fees. Ever.</p>
         <div className="hero-actions">
-          <a href="./bookings.html" className="btn-gold">Start Free → <span style={{fontSize: '18px'}}>🏕️</span></a>
+          <Link to="/bookings" className="btn-gold">Start Free → <span style={{fontSize: '18px'}}>🏕️</span></Link>
           <a href="#pricing" className="btn-outline">See Pricing</a>
         </div>
         <div className="hero-proof">
@@ -175,7 +175,6 @@ function App() {
         </div>
       </section>
 
-      {/* TRUST BAR */}
       <div className="trust-bar">
         <p>Trusted by operators worldwide — including</p>
         <div className="trust-tags">
@@ -185,7 +184,6 @@ function App() {
         </div>
       </div>
 
-      {/* DIFFERENTIATORS */}
       <section>
         <div className="centered">
           <div className="section-tag">Why OpDesk</div>
@@ -205,7 +203,6 @@ function App() {
         </div>
       </section>
 
-      {/* FEATURES */}
       <section className="features" id="features">
         <div className="centered">
           <div className="section-tag">Platform Modules</div>
@@ -236,7 +233,6 @@ function App() {
         </div>
       </section>
 
-      {/* INDUSTRIES */}
       <section id="industries" style={{background: '#fff'}}>
         <div className="centered">
           <div className="section-tag">Industries</div>
@@ -253,7 +249,6 @@ function App() {
         </div>
       </section>
 
-      {/* PRICING */}
       <section className="pricing" id="pricing">
         <div className="centered">
           <div className="section-tag">Pricing</div>
@@ -261,7 +256,6 @@ function App() {
           <p className="section-sub">All paid plans include unlimited bookings. No per-booking fees, ever. Pay monthly or save 2 months with an annual plan.</p>
         </div>
         
-        {/* Billing toggle */}
         <div style={{display: 'flex', justifyContent: 'center', marginBottom: '32px'}}>
           <div style={{display: 'inline-flex', background: '#e5e7eb', borderRadius: '9999px', padding: '4px', gap: '4px'}}>
             <button 
@@ -298,7 +292,6 @@ function App() {
         </div>
 
         <div className="pricing-grid">
-          {/* Free */}
           <div className="pricing-card">
             <div className="tier-name">Free</div>
             <div className="tier-price">R0</div>
@@ -309,10 +302,9 @@ function App() {
               <li>Basic scheduling</li>
               <li>OpDesk watermark</li>
             </ul>
-            <a href="./bookings.html" className="btn-plan btn-plan-outline">Get Started Free</a>
+            <Link to="/bookings" className="btn-plan btn-plan-outline">Get Started Free</Link>
           </div>
 
-          {/* Basic */}
           <div className="pricing-card">
             <div className="tier-name">Basic</div>
             <div className="tier-price">{formatPrice('basic').price}</div>
@@ -325,10 +317,9 @@ function App() {
               <li>Company logo on invoices & PDFs</li>
               <li>2 user seats</li>
             </ul>
-            <a href="./bookings.html" className="btn-plan btn-plan-outline">Start Basic</a>
+            <Link to="/bookings" className="btn-plan btn-plan-outline">Start Basic</Link>
           </div>
 
-          {/* Standard */}
           <div className="pricing-card featured">
             <div className="tier-badge">Most Popular</div>
             <div className="tier-name">Standard</div>
@@ -342,10 +333,9 @@ function App() {
               <li>Operator public profile page</li>
               <li>5 user seats & CSV export</li>
             </ul>
-            <a href="./bookings.html" className="btn-plan btn-plan-navy">Start Standard</a>
+            <Link to="/bookings" className="btn-plan btn-plan-navy">Start Standard</Link>
           </div>
 
-          {/* Premium */}
           <div className="pricing-card">
             <div className="tier-name">Premium</div>
             <div className="tier-price">{formatPrice('premium').price}</div>
@@ -358,28 +348,57 @@ function App() {
               <li>10 user seats & advanced reporting</li>
               <li>Priority support & early feature access</li>
             </ul>
-            <a href="./bookings.html" className="btn-plan btn-plan-outline">Start Premium</a>
+            <Link to="/bookings" className="btn-plan btn-plan-outline">Start Premium</Link>
           </div>
         </div>
         <p className="pricing-note">Prices shown in ZAR. At signup you choose your local currency — invoices and reports will reflect it. Need more slots? Buy extras one at a time.</p>
       </section>
 
-      {/* FINAL CTA */}
       <section className="cta-section">
         <h2>Ready to take command?</h2>
         <p>Join operators worldwide using OpDesk to run tighter, leaner operations. Free to start, no card required.</p>
-        <a href="./bookings.html" className="btn-gold" style={{fontSize: '18px', padding: '16px 40px'}}>
+        <Link to="/bookings" className="btn-gold" style={{fontSize: '18px', padding: '16px 40px'}}>
           Open OpDesk Free → 🏕️
-        </a>
+        </Link>
       </section>
 
-      {/* FOOTER */}
       <footer>
         <div className="footer-brand">OpDesk</div>
         <p>The Operator's Command Centre · Built by RollingRover Productions · South Africa</p>
-        <p style={{marginTop: '10px'}}>© 2026 OpDesk. All rights reserved. · <a href="./bookings.html">Sign In</a></p>
+        <p style={{marginTop: '10px'}}>© 2026 OpDesk. All rights reserved. · <Link to="/bookings">Sign In</Link></p>
       </footer>
     </>
+  );
+}
+
+// Main App component
+function App() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    
+    // Handle ?admin redirect
+    if (params.has('admin')) {
+      if (!window.location.pathname.startsWith('/admin')) {
+        window.location.href = '/admin' + window.location.search;
+      }
+    }
+    
+    // Handle ?redirect param for 2FA
+    if (params.has('redirect') && window.location.pathname === '/force-2fa') {
+      // Already on the right page
+    }
+  }, []);
+
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/bookings/*" element={<Bookings />} />
+      <Route path="/admin/*" element={<Admin />} />
+      <Route path="/operators/:slug" element={<OperatorProfile />} />
+      <Route path="/force-2fa" element={<Force2FAEnrollment />} />
+    </Routes>
   );
 }
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
+import { useAuth } from '../context/AuthContext';
+import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS_MAP, LABELS, ADDON_TYPES, Icon } from '../lib/constants.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 // ─── GENERIC CRUD ────────────────────────
 function CrudPage({ title, icon, table, fields, resourceKey }) {

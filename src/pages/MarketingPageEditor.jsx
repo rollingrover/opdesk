@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { TIERS, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS, LABELS, ADDON_TYPES } from '../lib/constants.jsx';
-
+import { useAuth } from '../context/AuthContext';
+import { TIERS, TIER_LIMITS, TIER_FEATURES, CURRENCIES, LANGUAGES, COUNTRIES, DAYS, CATS, ICONS_MAP, LABELS, ADDON_TYPES, getCurrencySymbol, getCompanyRegion, Icon } from '../lib/constants.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 // ─── MARKETING PAGE EDITOR ─────────────────
 function MarketingPageEditor() {
   const { company, tier, features } = useAuth();
