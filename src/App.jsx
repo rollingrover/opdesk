@@ -141,7 +141,8 @@ function LandingPage() {
         </div>
       </nav>
 
-      <section className="hero" style={{ padding: '100px 5% 80px', width: '100%' }}>
+      <div className="header-spacer"></div>
+      <section className="hero">
         <div className="hero-badge">Built for Travel Operators Worldwide</div>
         <h1>Run Your Entire<br /><span>Travel Operation</span><br />From One Place</h1>
         <p className="hero-sub">Bookings, guides, vehicles, drivers, certificates, invoices and schedules — all in one clean platform. Multi-currency. 12 languages. No per-booking fees. Ever.</p>
