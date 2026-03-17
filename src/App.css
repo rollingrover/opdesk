@@ -687,7 +687,7 @@ footer a {
 /* Small mobile */
 @media (max-width: 480px) {
   .hero {
-    padding: 10px 4% 50px;
+    padding: 90px 4% 50px;
   }
   
   .hero-proof {
