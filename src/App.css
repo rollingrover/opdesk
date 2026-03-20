@@ -740,67 +740,66 @@ footer a {
     padding: 60px 4%; 
   }
   
-  /* FIXED - Hero section with proper spacing */
+  /* MASSIVE VERTICAL SPACE - Hero section with huge padding */
   .hero { 
-    padding: 30px 4% 60px;
-    position: relative;
+    padding: 80px 4% 100px;
     min-height: auto;
   }
   
   .hero h1 {
-    font-size: 32px;
-    margin-bottom: 20px;
+    font-size: 36px;
+    margin-bottom: 28px;
     line-height: 1.2;
   }
   
   .hero-badge {
-    font-size: 11px;
-    padding: 6px 14px;
-    margin-bottom: 24px;
+    font-size: 12px;
+    padding: 8px 18px;
+    margin-bottom: 32px;
   }
   
   .hero-sub {
-    font-size: 15px;
-    margin-bottom: 32px;
-    padding: 0 8px;
-    line-height: 1.5;
+    font-size: 16px;
+    margin-bottom: 44px;
+    padding: 0 12px;
+    line-height: 1.6;
   }
   
   .hero-actions {
-    gap: 14px;
-    margin-bottom: 40px;
+    gap: 18px;
+    margin-bottom: 56px;
     flex-wrap: wrap;
     justify-content: center;
   }
   
   .btn-gold, .btn-outline {
-    padding: 12px 28px;
-    font-size: 15px;
+    padding: 14px 36px;
+    font-size: 16px;
   }
   
-  /* Hero proof - 2 column layout */
+  /* Hero proof - 2 column layout with more spacing */
   .hero-proof {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 24px 20px;
-    margin-top: 20px;
-    width: 100%;
+    gap: 32px 24px;
+    margin-top: 28px;
     margin-bottom: 20px;
+    width: 100%;
   }
   
   .hero-proof-item {
     text-align: center;
-    padding: 0 8px;
+    padding: 0 12px;
   }
   
   .hero-proof-num { 
-    font-size: 24px; 
-    margin-bottom: 6px;
+    font-size: 28px; 
+    margin-bottom: 10px;
   }
   
   .hero-proof-label { 
-    font-size: 11px; 
-    letter-spacing: 0.5px;
+    font-size: 12px; 
+    letter-spacing: 0.6px;
     word-break: break-word;
   }
   
@@ -826,96 +825,99 @@ footer a {
   }
 }
 
-/* Small mobile */
+/* Small mobile - MORE SPACE */
 @media (max-width: 480px) {
   .hero { 
-    padding: 25px 4% 50px;
+    padding: 70px 4% 90px;
+  }
+  
+  .hero h1 {
+    font-size: 32px;
+    margin-bottom: 24px;
+  }
+  
+  .hero-badge {
+    font-size: 11px;
+    padding: 6px 16px;
+    margin-bottom: 28px;
+  }
+  
+  .hero-sub {
+    font-size: 15px;
+    margin-bottom: 38px;
+    padding: 0 12px;
+  }
+  
+  .hero-actions {
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  
+  .btn-gold, .btn-outline {
+    padding: 12px 32px;
+    font-size: 15px;
+  }
+  
+  .hero-proof {
+    gap: 28px 20px;
+    margin-top: 24px;
+  }
+  
+  .hero-proof-num {
+    font-size: 26px;
+  }
+  
+  .hero-proof-label {
+    font-size: 11px;
+  }
+}
+
+/* Very small screens (320px) - MAXIMUM SPACE */
+@media (max-width: 375px) {
+  .hero { 
+    padding: 60px 4% 80px;
   }
   
   .hero h1 {
     font-size: 28px;
-    margin-bottom: 18px;
-  }
-  
-  .hero-badge {
-    font-size: 10px;
-    padding: 5px 12px;
     margin-bottom: 20px;
   }
   
-  .hero-sub {
-    font-size: 14px;
-    margin-bottom: 28px;
-  }
-  
-  .hero-actions {
-    gap: 12px;
-    margin-bottom: 32px;
-  }
-  
-  .btn-gold, .btn-outline {
-    padding: 10px 24px;
-    font-size: 14px;
-  }
-  
-  .hero-proof {
-    gap: 20px 16px;
-  }
-  
-  .hero-proof-num {
-    font-size: 22px;
-  }
-  
-  .hero-proof-label {
-    font-size: 10px;
-  }
-}
-
-/* Very small screens (320px) */
-@media (max-width: 375px) {
-  .hero { 
-    padding: 20px 4% 45px;
-  }
-  
-  .hero h1 {
-    font-size: 26px;
-    margin-bottom: 16px;
-  }
-  
   .hero-badge {
-    font-size: 9px;
-    padding: 4px 10px;
-    margin-bottom: 16px;
+    font-size: 10px;
+    padding: 5px 14px;
+    margin-bottom: 24px;
   }
   
   .hero-sub {
-    font-size: 13px;
-    margin-bottom: 24px;
+    font-size: 14px;
+    margin-bottom: 32px;
+    padding: 0 12px;
   }
   
   .hero-actions {
     flex-direction: column;
     width: 100%;
-    gap: 10px;
-    margin-bottom: 28px;
+    gap: 14px;
+    margin-bottom: 40px;
   }
   
   .btn-gold, .btn-outline {
     width: 100%;
     justify-content: center;
-    padding: 10px 20px;
-    font-size: 14px;
+    padding: 12px 28px;
+    font-size: 15px;
   }
   
   .hero-proof {
-    gap: 16px 12px;
+    gap: 24px 16px;
   }
   
   .hero-proof-num {
-    font-size: 20px;
+    font-size: 24px;
   }
   
   .hero-proof-label {
-    font-size: 9px;
+    font-size: 10px;
   }
 }
