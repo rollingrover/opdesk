@@ -643,7 +643,7 @@ footer a {
 @media (max-width: 768px) {
   nav { 
     padding: 12px 4%; 
-    height: 164px;
+    height: 64px;
   }
   
   .header-spacer {
@@ -740,62 +740,72 @@ footer a {
     padding: 60px 4%; 
   }
   
-  /* FIXED - Hero section with proper height and spacing */
+  /* COMPLETE FIX - Hero section with enough vertical space */
   .hero { 
-    padding: 30px 4% 60px;
+    padding: 80px 4% 100px;
     min-height: auto;
   }
   
   .hero h1 {
     font-size: 32px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+    line-height: 1.2;
   }
   
   .hero-badge {
     font-size: 11px;
-    margin-bottom: 20px;
+    padding: 6px 14px;
+    margin-bottom: 24px;
   }
   
   .hero-sub {
     font-size: 15px;
-    margin-bottom: 28px;
+    margin-bottom: 32px;
     padding: 0 8px;
   }
   
   .hero-actions {
-    gap: 12px;
-    margin-bottom: 32px;
+    gap: 14px;
+    margin-bottom: 40px;
     flex-wrap: wrap;
+    justify-content: center;
   }
   
   .btn-gold, .btn-outline {
-    padding: 12px 24px;
+    padding: 12px 28px;
     font-size: 15px;
   }
   
+  /* Hero proof - 2 column layout with enough spacing */
   .hero-proof {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    margin-top: 16px;
+    gap: 24px 20px;
+    margin-top: 20px;
+    width: 100%;
   }
   
   .hero-proof-item {
-    min-width: auto;
     text-align: center;
+    padding: 0 8px;
   }
   
   .hero-proof-num { 
-    font-size: 22px; 
+    font-size: 24px; 
+    margin-bottom: 6px;
   }
   
   .hero-proof-label { 
-    font-size: 10px; 
+    font-size: 11px; 
+    letter-spacing: 0.5px;
+    word-break: break-word;
   }
   
   .pricing-grid { 
     grid-template-columns: 1fr; 
     max-width: 400px; 
+    margin-left: auto;
+    margin-right: auto;
   }
   
   .pricing-card.featured { 
@@ -813,79 +823,78 @@ footer a {
   }
 }
 
-/* Small mobile */
+/* Small mobile - adjustments for smaller screens */
 @media (max-width: 480px) {
   .hero { 
-    padding: 20px 4% 50px;
+    padding: 60px 4% 80px;
   }
   
   .hero h1 {
     font-size: 28px;
-    line-height: 1.2;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
   
   .hero-badge {
     font-size: 10px;
-    padding: 4px 12px;
-    margin-bottom: 16px;
+    padding: 5px 12px;
+    margin-bottom: 20px;
   }
   
   .hero-sub {
     font-size: 14px;
-    margin-bottom: 24px;
-    padding: 0 4px;
-  }
-  
-  .hero-actions {
-    gap: 10px;
     margin-bottom: 28px;
   }
   
+  .hero-actions {
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  
   .btn-gold, .btn-outline {
-    padding: 10px 20px;
+    padding: 10px 22px;
     font-size: 14px;
   }
   
   .hero-proof {
-    gap: 16px;
+    gap: 20px 16px;
   }
   
   .hero-proof-num {
-    font-size: 20px;
+    font-size: 22px;
   }
   
   .hero-proof-label {
-    font-size: 9px;
+    font-size: 10px;
   }
 }
 
 /* Very small screens (320px) */
 @media (max-width: 375px) {
   .hero { 
-    padding: 15px 4% 40px;
+    padding: 50px 4% 70px;
   }
   
   .hero h1 {
-    font-size: 24px;
-    margin-bottom: 12px;
+    font-size: 26px;
+    margin-bottom: 14px;
   }
   
   .hero-badge {
     font-size: 9px;
-    margin-bottom: 12px;
+    padding: 4px 10px;
+    margin-bottom: 16px;
   }
   
   .hero-sub {
     font-size: 13px;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
   }
   
   .hero-actions {
     flex-direction: column;
     width: 100%;
-    gap: 10px;
-    margin-bottom: 24px;
+    gap: 12px;
+    margin-bottom: 28px;
   }
   
   .btn-gold, .btn-outline {
@@ -895,15 +904,14 @@ footer a {
   }
   
   .hero-proof {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 16px 12px;
   }
   
   .hero-proof-num {
-    font-size: 18px;
+    font-size: 20px;
   }
   
   .hero-proof-label {
-    font-size: 8px;
+    font-size: 9px;
   }
 }
