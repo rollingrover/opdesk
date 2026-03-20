@@ -643,7 +643,7 @@ footer a {
 @media (max-width: 768px) {
   nav { 
     padding: 12px 4%; 
-    height: 64px;
+    height: 164px;
   }
   
   .header-spacer {
