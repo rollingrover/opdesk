@@ -740,10 +740,11 @@ footer a {
     padding: 60px 4%; 
   }
   
-  /* INCREASED VERTICAL SPACE - Hero section with large padding */
+  /* COMPLETE FIX - Hero section with massive padding to prevent cut-off */
   .hero { 
-    padding: 120px 4% 120px;
+    padding: 180px 4% 150px;
     min-height: auto;
+    margin-top: -64px;
   }
   
   .hero h1 {
@@ -827,7 +828,8 @@ footer a {
 /* Small mobile */
 @media (max-width: 480px) {
   .hero { 
-    padding: 100px 4% 100px;
+    padding: 160px 4% 130px;
+    margin-top: -64px;
   }
   
   .hero h1 {
@@ -873,7 +875,8 @@ footer a {
 /* Very small screens (320px) */
 @media (max-width: 375px) {
   .hero { 
-    padding: 80px 4% 80px;
+    padding: 140px 4% 110px;
+    margin-top: -64px;
   }
   
   .hero h1 {
