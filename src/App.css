@@ -119,7 +119,7 @@ nav {
 /* HERO - Fixed padding to account for header */
 .hero {
   background: linear-gradient(135deg, var(--navy) 0%, #162e50 60%, #1a3a60 100%);
-  padding: 150px 5% 80px;
+  padding: 250px 5% 80px;
   text-align: center; 
   position: relative;
   width: 100%;
