@@ -116,10 +116,10 @@ nav {
   width: 100%;
 }
 
-/* HERO - Fixed padding */
+/* HERO - Fixed padding to account for header */
 .hero {
   background: linear-gradient(135deg, var(--navy) 0%, #162e50 60%, #1a3a60 100%);
-  padding: 80px 5% 80px;
+  padding: 40px 5% 80px;
   text-align: center; 
   position: relative;
   width: 100%;
@@ -646,6 +646,10 @@ footer a {
     height: 64px;
   }
   
+  .header-spacer {
+    height: 64px;
+  }
+  
   .nav-links { 
     display: none; 
   }
@@ -737,7 +741,7 @@ footer a {
   }
   
   .hero { 
-    padding: 80px 4% 60px; 
+    padding: 30px 4% 50px; 
   }
   
   .hero-proof { 
@@ -775,7 +779,7 @@ footer a {
 /* Small mobile */
 @media (max-width: 480px) {
   .hero {
-    padding: 60px 4% 50px;
+    padding: 20px 4% 40px;
   }
   
   .hero h1 {
@@ -793,12 +797,13 @@ footer a {
   
   .hero-sub {
     font-size: 14px;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
     padding: 0 8px;
   }
   
   .hero-actions {
     gap: 10px;
+    margin-bottom: 20px;
   }
   
   .btn-gold, .btn-outline {
@@ -808,7 +813,7 @@ footer a {
   
   .hero-proof {
     gap: 16px;
-    margin-top: 32px;
+    margin-top: 20px;
   }
   
   .hero-proof-num {
