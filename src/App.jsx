@@ -10,6 +10,7 @@ import Force2FAEnrollment from './pages/Force2FAEnrollment';
 // Landing page component
 function LandingPage() {
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pricing, setPricing] = useState({
     basic: { monthly: 349, annual: 3490 },
     standard: { monthly: 1099, annual: 10990 },
@@ -74,6 +75,10 @@ function LandingPage() {
     }
   };
 
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+  };
+
   const features = [
     { icon: '📅', title: 'Bookings & Calendar', desc: 'Full booking management with calendar view, status tracking, resource allocation, and guest profiles.', tier: 'All tiers', badgeBg: '#f3f4f6', badgeColor: '#6b7280' },
     { icon: '🦺', title: 'Guide Management', desc: 'Staff profiles, FGASA/CATHSSETA/Bushwise certs, First Aid, Firearms, Marine, SKS, PH, and Track & Sign — all with expiry tracking.', tier: 'All tiers', badgeBg: '#f3f4f6', badgeColor: '#6b7280' },
@@ -133,15 +138,35 @@ function LandingPage() {
             <div className="nav-brand-tag">Operator's Command Centre</div>
           </div>
         </Link>
+
+        {/* Desktop Navigation */}
         <div className="nav-links">
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
           <a href="#industries">Industries</a>
           <Link to="/bookings" className="nav-cta">Sign In →</Link>
         </div>
+
+        {/* Mobile Hamburger Button */}
+        <button 
+          className={`mobile-menu-btn ${mobileMenuOpen ? 'open' : ''}`}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        {/* Mobile Navigation Menu */}
+        <div className={`mobile-nav-links ${mobileMenuOpen ? 'open' : ''}`}>
+          <a href="#features" onClick={closeMobileMenu}>Features</a>
+          <a href="#pricing" onClick={closeMobileMenu}>Pricing</a>
+          <a href="#industries" onClick={closeMobileMenu}>Industries</a>
+          <Link to="/bookings" className="nav-cta" onClick={closeMobileMenu}>Sign In →</Link>
+        </div>
       </nav>
 
-      <div className="header-spacer"></div>
       <section className="hero">
         <div className="hero-badge">Built for Travel Operators Worldwide</div>
         <h1>Run Your Entire<br /><span>Travel Operation</span><br />From One Place</h1>
