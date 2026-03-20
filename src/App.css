@@ -642,8 +642,8 @@ footer a {
 /* ===== MOBILE NAVIGATION ===== */
 @media (max-width: 768px) {
   nav { 
-    padding: 15px 4%; 
-    height: 164px;
+    padding: 0px 4%; 
+    height: 200px;
   }
   
   .header-spacer {
