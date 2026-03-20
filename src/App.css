@@ -643,11 +643,11 @@ footer a {
 @media (max-width: 768px) {
   nav { 
     padding: 12px 4%; 
-    height: 100px;
+    height: 200px;
   }
   
   .header-spacer {
-    height: 100px;
+    height: 200px;
   }
   
   .nav-links { 
