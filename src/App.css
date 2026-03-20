@@ -642,12 +642,12 @@ footer a {
 /* ===== MOBILE NAVIGATION ===== */
 @media (max-width: 768px) {
   nav { 
-    padding: 300px 4%; 
-    height: 20px;
+    padding: 12px 4%; 
+    height: 100px;
   }
   
   .header-spacer {
-    height: 20px;
+    height: 100px;
   }
   
   .nav-links { 
