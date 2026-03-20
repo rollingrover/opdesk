@@ -167,6 +167,9 @@ function LandingPage() {
         </div>
       </nav>
 
+      {/* Add spacer div to push content below fixed header */}
+      <div className="header-spacer"></div>
+
       <section className="hero">
         <div className="hero-badge">Built for Travel Operators Worldwide</div>
         <h1>Run Your Entire<br /><span>Travel Operation</span><br />From One Place</h1>
