@@ -642,7 +642,7 @@ footer a {
 /* ===== MOBILE NAVIGATION ===== */
 @media (max-width: 768px) {
   nav { 
-    padding: 0px 4%; 
+    padding: 300px 4%; 
     height: 300px;
   }
   
