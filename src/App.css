@@ -741,9 +741,9 @@ footer a {
     padding: 60px 4%; 
   }
   
-  /* FINAL FIX - Smaller fonts + More vertical space */
+  /* FINAL FIX - Extra bottom space for stats */
   .hero { 
-    padding: 350px 4% 250px;
+    padding: 350px 4% 300px;
     min-height: auto;
     display: flex;
     flex-direction: column;
@@ -783,12 +783,13 @@ footer a {
     font-size: 14px;
   }
   
-  /* Hero proof - 2x2 grid with balanced spacing */
+  /* Hero proof - 2x2 grid with more bottom space */
   .hero-proof {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 35px 25px;
+    gap: 40px 25px;
     margin-top: 20px;
+    margin-bottom: 20px;
     width: 100%;
   }
   
@@ -833,7 +834,7 @@ footer a {
 /* Small mobile - iPhone SE / 375px */
 @media (max-width: 480px) {
   .hero { 
-    padding: 320px 4% 220px;
+    padding: 320px 4% 280px;
   }
   
   .hero-badge {
@@ -863,7 +864,7 @@ footer a {
   }
   
   .hero-proof {
-    gap: 30px 20px;
+    gap: 35px 20px;
   }
   
   .hero-proof-num {
@@ -878,7 +879,7 @@ footer a {
 /* Very small screens - iPhone 5 / 320px */
 @media (max-width: 375px) {
   .hero { 
-    padding: 280px 4% 180px;
+    padding: 280px 4% 240px;
   }
   
   .hero-badge {
@@ -911,7 +912,7 @@ footer a {
   }
   
   .hero-proof {
-    gap: 25px 15px;
+    gap: 30px 15px;
   }
   
   .hero-proof-num {
@@ -926,7 +927,7 @@ footer a {
 /* Extra small - iPhone 4 / 320px and below */
 @media (max-width: 320px) {
   .hero { 
-    padding: 260px 4% 160px;
+    padding: 260px 4% 220px;
   }
   
   .hero-badge {
@@ -955,7 +956,7 @@ footer a {
   }
   
   .hero-proof {
-    gap: 20px 12px;
+    gap: 25px 12px;
   }
   
   .hero-proof-num {
