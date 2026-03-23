@@ -82,11 +82,11 @@ function BillingPage() {
       .limit(1);
     
     // If table doesn't exist, just return without error
-    if (checkError && checkError.code === 'PGRST205') {
-      console.log('Company discounts table not yet created');
-      setAvailableDiscounts([]);
-      return;
-    }
+   if (checkError && checkError.code === 'PGRST205') {
+  // Table not created yet, just return empty array
+  setAvailableDiscounts([]);
+  return;
+}
     
     const { data, error } = await supabase
       .from('company_discounts')
