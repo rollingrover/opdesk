@@ -395,6 +395,13 @@ function LandingPage() {
         <div className="footer-brand">OpDesk</div>
         <p>The Operator's Command Centre · Built by RollingRover Productions · South Africa</p>
         <p style={{marginTop: '10px'}}>© 2026 OpDesk. All rights reserved. · <Link to="/bookings">Sign In</Link></p>
+        <a href="https://www.payfast.co.za" target="_blank" rel="noopener noreferrer">
+  <img 
+    src="https://www.payfast.co.za/img/logo/100x34px_logo.png" 
+    alt="PayFast – Secure Online Payments"
+    style={{ height: '30px', width: 'auto', marginLeft: '10px' }}
+  />
+</a>
       </footer>
     </>
   );
