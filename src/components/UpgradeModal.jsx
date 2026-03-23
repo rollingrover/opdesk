@@ -56,7 +56,7 @@ const PAYFAST_CONFIG = {
 function UpgradeModal({ onClose }) {
   const { toast, showToast } = useToast();
   const { tier, company } = useAuth();
-  const [billing, setBilling] = useState('monthly'); // 'monthly' | 'annual'
+  const [billing, setBilling] = useState('monthly');
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   const [companyDiscounts, setCompanyDiscounts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -77,14 +77,12 @@ function UpgradeModal({ onClose }) {
       
       if (error) throw error;
       
-      // Filter discounts that apply to subscriptions
       const subscriptionDiscounts = (data || []).filter(d => 
         d.applies_to === 'subscription' || d.applies_to === 'all'
       );
       
       setCompanyDiscounts(subscriptionDiscounts);
       
-      // Auto-apply the best discount if available
       if (subscriptionDiscounts.length > 0) {
         const bestDiscount = subscriptionDiscounts.reduce((best, current) => {
           if (current.type === 'free') return current;
@@ -200,12 +198,25 @@ function UpgradeModal({ onClose }) {
     const { amount } = planPrice(p);
     
     if (PAYFAST_CONFIG.sandbox) {
-      // Sandbox mode - simulate payment
       handleSandboxUpgrade(p, amount);
       return;
     }
     
-    // Live mode - redirect to PayFast
+    // Create metadata for the webhook
+    const metadata = {
+      type: 'subscription',
+      tier: p.key,
+      billing: billing,
+      companyName: company?.name,
+      originalPrice: billing === 'annual' ? p.annual : p.monthly,
+      discountApplied: appliedDiscount ? {
+        type: appliedDiscount.type,
+        value: appliedDiscount.value,
+        id: appliedDiscount.id
+      } : null
+    };
+    
+    // Live mode - redirect to PayFast with proper metadata
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = 'https://www.payfast.co.za/eng/process';
@@ -226,13 +237,12 @@ function UpgradeModal({ onClose }) {
       frequency: billing === 'annual' ? '6' : '3',
       cycles: '0',
       custom_str1: company?.id || '',
-      custom_str2: p.key,
-      custom_str3: billing,
+      custom_str2: JSON.stringify(metadata), // Store full metadata as JSON
       custom_int1: appliedDiscount?.id || ''
     };
     
     Object.entries(fields).forEach(([k, v]) => { 
-      if (v) {
+      if (v !== undefined && v !== null && v !== '') {
         const i = document.createElement('input'); 
         i.type = 'hidden'; 
         i.name = k; 
@@ -260,6 +270,22 @@ function UpgradeModal({ onClose }) {
       
       if (error) throw error;
       
+      // Log the sandbox payment
+      await supabase.from('payments').insert({
+        company_id: company.id,
+        payment_id: `sandbox_${Date.now()}`,
+        amount: amount,
+        status: 'COMPLETE',
+        item_name: `OpDesk ${p.label} plan`,
+        email: company?.email,
+        metadata: {
+          type: 'subscription',
+          tier: p.key,
+          billing: billing,
+          sandbox: true
+        }
+      }).catch(e => console.warn('Failed to log sandbox payment:', e));
+      
       setTimeout(() => {
         onClose();
         window.location.reload();
@@ -285,7 +311,6 @@ function UpgradeModal({ onClose }) {
           </button>
         </div>
 
-        {/* Company-specific discounts banner */}
         {companyDiscounts.length > 0 && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
@@ -303,7 +328,6 @@ function UpgradeModal({ onClose }) {
           </div>
         )}
         
-        {/* Billing toggle */}
         <div className="flex justify-center mb-5">
           <div className="inline-flex bg-gray-100 rounded-full p-1 gap-1">
             <button 
@@ -328,7 +352,6 @@ function UpgradeModal({ onClose }) {
           </div>
         </div>
 
-        {/* Plans grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {plans.map(p => {
             const { label, sub, original } = planPrice(p);
@@ -392,7 +415,6 @@ function UpgradeModal({ onClose }) {
           })}
         </div>
 
-        {/* Footer note */}
         <div className="mt-4 text-center">
           <p className="text-xs text-gray-400">
             Secure via PayFast · ZAR · No per-booking fees · Cancel anytime
