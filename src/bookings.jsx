@@ -58,11 +58,11 @@ function AuthScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState('login'); // 'login' or 'signup'
+  const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'forgot'
   const [companyName, setCompanyName] = useState('');
   const [fullName, setFullName] = useState('');
   const { toast, showToast } = useToast();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -100,6 +100,22 @@ function AuthScreen() {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    const { error } = await resetPassword(email);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      showToast('Reset link sent! Check your email inbox.', 'success');
+      setMode('login');
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center" style={{background:'#0F2540'}}>
       <Toast toast={toast} />
@@ -107,9 +123,11 @@ function AuthScreen() {
         <div className="text-center mb-8">
           <Logo size={60} />
           <h2 className="text-2xl font-bold text-navy mt-4">
-            {mode === 'login' ? 'Sign in to OpDesk' : 'Create an Account'}
+            {mode === 'login' ? 'Sign in to OpDesk' : mode === 'signup' ? 'Create an Account' : 'Reset Password'}
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Operator's Command Centre</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {mode === 'forgot' ? 'We\'ll email you a reset link' : 'Operator\'s Command Centre'}
+          </p>
         </div>
 
         {mode === 'login' ? (
@@ -140,6 +158,15 @@ function AuthScreen() {
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-gold"
                 required
               />
+              <div className="text-right mt-1">
+                <button
+                  type="button"
+                  onClick={() => { setError(''); setMode('forgot'); }}
+                  className="text-xs text-gold hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
             </div>
 
             <button
@@ -157,6 +184,44 @@ function AuthScreen() {
                 className="text-sm text-gold hover:underline"
               >
                 Don't have an account? Sign up
+              </button>
+            </div>
+          </form>
+        ) : mode === 'forgot' ? (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Your account email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-gold"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-primary py-2.5"
+            >
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => { setError(''); setMode('login'); }}
+                className="text-sm text-gold hover:underline"
+              >
+                ← Back to Sign In
               </button>
             </div>
           </form>

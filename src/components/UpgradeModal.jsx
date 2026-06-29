@@ -46,7 +46,7 @@ function Toast({ toast }) {
 const PAYFAST_CONFIG = {
   merchant_id: import.meta.env.VITE_PAYFAST_MERCHANT_ID || '10000100',
   merchant_key: import.meta.env.VITE_PAYFAST_MERCHANT_KEY || '46f0cd694581a',
-  sandbox: import.meta.env.VITE_PAYFAST_SANDBOX === 'true' || true,
+  sandbox: import.meta.env.VITE_PAYFAST_SANDBOX === 'true',
   return_url: `${window.location.origin}/billing?success=1`,
   cancel_url: `${window.location.origin}/billing?cancelled=1`,
   notify_url: `${window.location.origin}/api/notify-payment`,

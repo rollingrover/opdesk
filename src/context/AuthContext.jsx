@@ -129,6 +129,13 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Reset password — sends a magic link to the user's email
+  async function resetPassword(email) {
+    return await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+  }
+
   // Sign out function - FIXED
   async function signOut() {
     await supabase.auth.signOut();
@@ -189,6 +196,7 @@ export function AuthProvider({ children }) {
     signIn,
     signUp,
     signOut,
+    resetPassword,
     reload,
     setCompany
   };

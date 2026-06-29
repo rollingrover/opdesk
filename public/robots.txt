@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /bookings
+Disallow: /app
+Disallow: /admin
+Sitemap: https://opdesk.app/sitemap.xml

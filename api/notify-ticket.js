@@ -38,7 +38,7 @@ export default async function handler(req, res) {
           <td style="padding:10px 16px;font-size:14px;color:#374151;white-space:pre-wrap;line-height:1.6">${description}</td></tr>
       </table>
       <div style="margin-top:20px;text-align:center">
-        <a href="https://opdesk.app/bookings.html?admin" style="background:#dc2626;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+        <a href="https://opdesk.app/bookings#admin" style="background:#dc2626;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
           View in Admin Panel
         </a>
       </div>
