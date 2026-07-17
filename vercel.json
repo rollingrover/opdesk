@@ -17,8 +17,8 @@
           "value": "nosniff"
         },
         {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://rollingrover.co.za https://www.rollingrover.co.za"
         },
         {
           "key": "X-XSS-Protection",
