@@ -393,7 +393,12 @@ function LandingPage() {
 
       <footer>
         <div className="footer-brand">OpDesk</div>
-        <p>The Operator's Command Centre · Built by RollingRover Productions · South Africa</p>
+        <p>
+          The Operator's Command Centre · Built by{' '}
+          <a href="https://www.rollingrover.co.za" target="_blank" rel="noopener noreferrer">
+            RollingRover Productions
+          </a>{' '}· South Africa
+        </p>
         <p style={{marginTop: '10px'}}>© 2026 OpDesk. All rights reserved. · <Link to="/bookings">Sign In</Link></p>
       </footer>
     </>
