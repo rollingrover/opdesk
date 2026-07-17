@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { supabase } from './lib/supabase.js';
 import './App.css';
@@ -7,7 +7,6 @@ import Admin from './admin';
 import OperatorProfile from './OperatorProfile';
 import Force2FAEnrollment from './pages/Force2FAEnrollment';
 
-// Landing page component
 function LandingPage() {
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -33,32 +32,31 @@ function LandingPage() {
         .select('tier, monthly_price, annual_price')
         .order('tier');
 
-      if (error) {
-        console.warn('Using default pricing');
-        return;
-      }
+      if (error) return;
 
       if (tiers && tiers.length > 0) {
-        const newPricing = { ...pricing };
-        tiers.forEach(({ tier, monthly_price, annual_price }) => {
-          const key = tier.toLowerCase();
-          if (key !== 'free') {
-            newPricing[key] = {
-              monthly: parseFloat(monthly_price) || 0,
-              annual: parseFloat(annual_price) || 0
-            };
-          }
+        setPricing(prev => {
+          const next = { ...prev };
+          tiers.forEach(({ tier, monthly_price, annual_price }) => {
+            const key = String(tier || '').toLowerCase();
+            if (key && key !== 'free') {
+              next[key] = {
+                monthly: parseFloat(monthly_price) || 0,
+                annual: parseFloat(annual_price) || 0
+              };
+            }
+          });
+          return next;
         });
-        setPricing(newPricing);
       }
-    } catch (e) {
-      // Silent fail
+    } catch {
+      return;
     }
   };
 
   const formatPrice = (tier) => {
     if (!pricing[tier]) return { price: 'R0', sub: '' };
-    
+
     if (billingCycle === 'annual') {
       const annual = pricing[tier]?.annual || 0;
       const monthly = Math.round(annual / 12);
@@ -66,20 +64,18 @@ function LandingPage() {
         price: `R${annual.toLocaleString('en-ZA')}`,
         sub: `per year · ~R${monthly}/mo · 2 months free`
       };
-    } else {
-      const monthly = pricing[tier]?.monthly || 0;
-      return {
-        price: `R${monthly.toLocaleString('en-ZA')}`,
-        sub: 'per month'
-      };
     }
+
+    const monthly = pricing[tier]?.monthly || 0;
+    return {
+      price: `R${monthly.toLocaleString('en-ZA')}`,
+      sub: 'per month'
+    };
   };
 
-  const closeMobileMenu = () => {
-    setMobileMenuOpen(false);
-  };
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
-  const features = [
+  const features = useMemo(() => ([
     { icon: '📅', title: 'Bookings & Calendar', desc: 'Full booking management with calendar view, status tracking, resource allocation, and guest profiles.', tier: 'All tiers', badgeBg: '#f3f4f6', badgeColor: '#6b7280' },
     { icon: '🦺', title: 'Guide Management', desc: 'Staff profiles, FGASA/CATHSSETA/Bushwise certs, First Aid, Firearms, Marine, SKS, PH, and Track & Sign — all with expiry tracking.', tier: 'All tiers', badgeBg: '#f3f4f6', badgeColor: '#6b7280' },
     { icon: '🚙', title: 'Fleet Management', desc: 'Vehicle profiles, service records, roadworthy and insurance expiry tracking, and document uploads.', tier: 'All tiers', badgeBg: '#f3f4f6', badgeColor: '#6b7280' },
@@ -95,43 +91,43 @@ function LandingPage() {
     { icon: '🎨', title: 'White-label Branding', desc: 'Remove all OpDesk branding. Your logo, your colours, your platform.', tier: 'Premium', badgeBg: '#fef3c7', badgeColor: '#92400e' },
     { icon: '📣', title: 'Marketing Page', desc: 'A free public profile page for your operation. Upload photos, describe your services — we host it and help you get found online.', tier: 'Basic+', badgeBg: '#dbeafe', badgeColor: '#1d4ed8' },
     { icon: '🔔', title: 'Auto Email Backup', desc: 'Automatic daily backup of your operational data sent to your registered email.', tier: 'Premium', badgeBg: '#fef3c7', badgeColor: '#92400e' }
-  ];
+  ]), []);
 
-  const industries = [
+  const industries = useMemo(() => ([
     { emoji: '🦁', name: 'Safari & Wildlife', sub: 'Game drives, walking safaris, guided tours' },
     { emoji: '🚌', name: 'Shuttle & Transfer', sub: 'Airport transfers, inter-city shuttles' },
     { emoji: '🚤', name: 'Fishing Charters', sub: 'Deep-sea, river, and inshore fishing trips' },
     { emoji: '⛵', name: 'Yacht Charters', sub: 'Day sails, multi-day, corporate functions' },
     { emoji: '🏔️', name: 'Adventure & Trails', sub: 'Hiking, mountain trails, eco-tourism' },
     { emoji: '🌍', name: 'Cultural & Eco Tours', sub: 'Zulu heritage, volunteer, cultural experiences' }
-  ];
+  ]), []);
 
-  const differentiators = [
+  const differentiators = useMemo(() => ([
     { title: 'No per-booking fees', desc: 'Every booking you make is 100% yours. OpDesk charges a flat subscription — not a cut of your revenue.' },
     { title: 'Works in your currency', desc: 'Choose your local currency at signup — ZAR, USD, EUR, GBP, KES and more. Invoices and reports display in the currency your business runs on.' },
     { title: 'Staff cert compliance built-in', desc: 'Track FGASA, First Aid, PDP, SKS, PH, and Marine licences — with automatic expiry alerts at 30 days.' },
     { title: 'Grows with you', desc: 'Buy extra vehicle, guide, or driver slots one at a time as your fleet grows — no forced plan jumps.' },
     { title: 'Pro forma invoices', desc: 'Generate branded PDF invoices with your company logo instantly from any booking. Includes VAT and banking details.' },
     { title: '2FA & multi-user', desc: 'TOTP two-factor auth and role-based access so owners and agents each see exactly what they need.' }
-  ];
+  ]), []);
 
-  const trustTags = [
-    '🦁 Safari Operators', '🚌 Shuttle Companies', '🚤 Fishing Charters', 
-    '⛵ Yacht Charters', '🥾 Trail Guides', '🦏 Game Lodges', 
+  const trustTags = useMemo(() => ([
+    '🦁 Safari Operators', '🚌 Shuttle Companies', '🚤 Fishing Charters',
+    '⛵ Yacht Charters', '🥾 Trail Guides', '🦏 Game Lodges',
     '🌍 East Africa Tours', '🏝️ Island Transfers'
-  ];
+  ]), []);
 
   return (
     <>
       <nav>
         <Link to="/" className="nav-brand">
           <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
-            <circle cx="50" cy="50" r="45" stroke="#D4A853" strokeWidth="3" fill="none"/>
-            <polygon points="50,10 55,45 50,50 45,45" fill="#D4A853"/>
-            <polygon points="50,90 55,55 50,50 45,55" fill="#D4A853" opacity="0.5"/>
-            <polygon points="10,50 45,45 50,50 45,55" fill="#D4A853" opacity="0.5"/>
-            <polygon points="90,50 55,55 50,50 55,45" fill="#D4A853"/>
-            <circle cx="50" cy="50" r="6" fill="#D4A853"/>
+            <circle cx="50" cy="50" r="45" stroke="#D4A853" strokeWidth="3" fill="none" />
+            <polygon points="50,10 55,45 50,50 45,45" fill="#D4A853" />
+            <polygon points="50,90 55,55 50,50 45,55" fill="#D4A853" opacity="0.5" />
+            <polygon points="10,50 45,45 50,50 45,55" fill="#D4A853" opacity="0.5" />
+            <polygon points="90,50 55,55 50,50 55,45" fill="#D4A853" />
+            <circle cx="50" cy="50" r="6" fill="#D4A853" />
           </svg>
           <div>
             <div className="nav-brand-name">OpDesk</div>
@@ -139,7 +135,6 @@ function LandingPage() {
           </div>
         </Link>
 
-        {/* Desktop Navigation */}
         <div className="nav-links">
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
@@ -147,10 +142,9 @@ function LandingPage() {
           <Link to="/bookings" className="nav-cta">Sign In →</Link>
         </div>
 
-        {/* Mobile Hamburger Button */}
-        <button 
+        <button
           className={`mobile-menu-btn ${mobileMenuOpen ? 'open' : ''}`}
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          onClick={() => setMobileMenuOpen(v => !v)}
           aria-label="Toggle menu"
         >
           <span></span>
@@ -158,7 +152,6 @@ function LandingPage() {
           <span></span>
         </button>
 
-        {/* Mobile Navigation Menu */}
         <div className={`mobile-nav-links ${mobileMenuOpen ? 'open' : ''}`}>
           <a href="#features" onClick={closeMobileMenu}>Features</a>
           <a href="#pricing" onClick={closeMobileMenu}>Pricing</a>
@@ -167,7 +160,6 @@ function LandingPage() {
         </div>
       </nav>
 
-      {/* Add spacer div to push content below fixed header */}
       <div className="header-spacer"></div>
 
       <section className="hero">
@@ -175,7 +167,7 @@ function LandingPage() {
         <h1>Run Your Entire<br /><span>Travel Operation</span><br />From One Place</h1>
         <p className="hero-sub">Bookings, guides, vehicles, drivers, certificates, invoices and schedules — all in one clean platform. Multi-currency. 12 languages. No per-booking fees. Ever.</p>
         <div className="hero-actions">
-          <Link to="/bookings" className="btn-gold">Start Free → <span style={{fontSize: '18px'}}>🏕️</span></Link>
+          <Link to="/bookings" className="btn-gold">Start Free → <span style={{ fontSize: '18px' }}>🏕️</span></Link>
           <a href="#pricing" className="btn-outline">See Pricing</a>
         </div>
         <div className="hero-proof">
@@ -189,8 +181,8 @@ function LandingPage() {
           </div>
           <div className="hero-proof-item">
             <div className="hero-proof-num">
-              From {billingCycle === 'annual' 
-                ? `R${pricing.basic?.annual?.toLocaleString('en-ZA')}/yr` 
+              From {billingCycle === 'annual'
+                ? `R${pricing.basic?.annual?.toLocaleString('en-ZA')}/yr`
                 : `R${pricing.basic?.monthly?.toLocaleString('en-ZA')}/mo`}
             </div>
             <div className="hero-proof-label">
@@ -207,9 +199,7 @@ function LandingPage() {
       <div className="trust-bar">
         <p>Trusted by operators worldwide — including</p>
         <div className="trust-tags">
-          {trustTags.map((tag, i) => (
-            <span key={i} className="trust-tag">{tag}</span>
-          ))}
+          {trustTags.map((tag, i) => <span key={i} className="trust-tag">{tag}</span>)}
         </div>
       </div>
 
@@ -262,7 +252,7 @@ function LandingPage() {
         </div>
       </section>
 
-      <section id="industries" style={{background: '#fff'}}>
+      <section id="industries" style={{ background: '#fff' }}>
         <div className="centered">
           <div className="section-tag">Industries</div>
           <h2 className="section-title">Built for your kind of business</h2>
@@ -284,10 +274,10 @@ function LandingPage() {
           <h2 className="section-title">Priced for African operators, built for the world</h2>
           <p className="section-sub">All paid plans include unlimited bookings. No per-booking fees, ever. Pay monthly or save 2 months with an annual plan.</p>
         </div>
-        
-        <div style={{display: 'flex', justifyContent: 'center', marginBottom: '32px'}}>
-          <div style={{display: 'inline-flex', background: '#e5e7eb', borderRadius: '9999px', padding: '4px', gap: '4px'}}>
-            <button 
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+          <div style={{ display: 'inline-flex', background: '#e5e7eb', borderRadius: '9999px', padding: '4px', gap: '4px' }}>
+            <button
               onClick={() => setBillingCycle('monthly')}
               style={{
                 padding: '8px 24px',
@@ -296,13 +286,13 @@ function LandingPage() {
                 fontWeight: '600',
                 border: 'none',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
                 background: billingCycle === 'monthly' ? '#0F2540' : 'transparent',
                 color: billingCycle === 'monthly' ? 'white' : '#6b7280'
-              }}>
+              }}
+            >
               Monthly
             </button>
-            <button 
+            <button
               onClick={() => setBillingCycle('annual')}
               style={{
                 padding: '8px 24px',
@@ -311,11 +301,11 @@ function LandingPage() {
                 fontWeight: '600',
                 border: 'none',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
                 background: billingCycle === 'annual' ? '#0F2540' : 'transparent',
                 color: billingCycle === 'annual' ? 'white' : '#6b7280'
-              }}>
-              Annual <span style={{marginLeft: '6px', fontSize: '11px', background: '#D4A853', color: '#0F2540', padding: '2px 8px', borderRadius: '9999px', fontWeight: '700'}}>2 months free</span>
+              }}
+            >
+              Annual <span style={{ marginLeft: '6px', fontSize: '11px', background: '#D4A853', color: '#0F2540', padding: '2px 8px', borderRadius: '9999px', fontWeight: '700' }}>2 months free</span>
             </button>
           </div>
         </div>
@@ -352,7 +342,7 @@ function LandingPage() {
           <div className="pricing-card featured">
             <div className="tier-badge">Most Popular</div>
             <div className="tier-name">Standard</div>
-            <div className="tier-price" style={{color: '#D4A853'}}>{formatPrice('standard').price}</div>
+            <div className="tier-price" style={{ color: '#D4A853' }}>{formatPrice('standard').price}</div>
             <div className="tier-price-sub">{formatPrice('standard').sub}</div>
             <ul className="tier-features">
               <li>Client list, invoicing & PDF billing</li>
@@ -380,13 +370,14 @@ function LandingPage() {
             <Link to="/bookings" className="btn-plan btn-plan-outline">Start Premium</Link>
           </div>
         </div>
+
         <p className="pricing-note">Prices shown in ZAR. At signup you choose your local currency — invoices and reports will reflect it. Need more slots? Buy extras one at a time.</p>
       </section>
 
       <section className="cta-section">
         <h2>Ready to take command?</h2>
         <p>Join operators worldwide using OpDesk to run tighter, leaner operations. Free to start, no card required.</p>
-        <Link to="/bookings" className="btn-gold" style={{fontSize: '18px', padding: '16px 40px'}}>
+        <Link to="/bookings" className="btn-gold" style={{ fontSize: '18px', padding: '16px 40px' }}>
           Open OpDesk Free → 🏕️
         </Link>
       </section>
@@ -399,31 +390,22 @@ function LandingPage() {
             RollingRover Productions
           </a>{' '}· South Africa
         </p>
-        <p style={{marginTop: '10px'}}>© 2026 OpDesk. All rights reserved. · <Link to="/bookings">Sign In</Link></p>
+        <p style={{ marginTop: '10px' }}>© 2026 OpDesk. All rights reserved. · <Link to="/bookings">Sign In</Link></p>
       </footer>
     </>
   );
 }
 
-// Main App component
 function App() {
   const navigate = useNavigate();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    
-    // Handle ?admin redirect
-    if (params.has('admin')) {
-      if (!window.location.pathname.startsWith('/admin')) {
-        window.location.href = '/admin' + window.location.search;
-      }
+
+    if (params.has('admin') && !window.location.pathname.startsWith('/admin')) {
+      window.location.href = '/admin' + window.location.search;
     }
-    
-    // Handle ?redirect param for 2FA
-    if (params.has('redirect') && window.location.pathname === '/force-2fa') {
-      // Already on the right page
-    }
-  }, []);
+  }, [navigate]);
 
   return (
     <Routes>
