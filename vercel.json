@@ -18,7 +18,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://rollingrover.co.za https://www.rollingrover.co.za"
+          "value": "frame-ancestors 'self' http://localhost:3000 http://127.0.0.1:3000 http://rollingrover.co.za http://www.rollingrover.co.za https://rollingrover.co.za https://www.rollingrover.co.za https://*.rollingrover.co.za http://*.rollingrover.co.za"
         },
         {
           "key": "X-XSS-Protection",
